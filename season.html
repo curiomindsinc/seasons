@@ -1,0 +1,3049 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Why Earth Has Seasons — Tilt &amp; Orbit Simulator</title>
+<style>
+  :root{
+    --bg:#05070d;
+    --panel:#0a0e18;
+    --panel-2:#0e1422;
+    --line:#1b2436;
+    --line-2:#2a3650;
+    --text:#dce3f0;
+    --muted:#7c8aa5;
+    --dim:#4d5a72;
+    --sun:#ffb445;
+    --cool:#5bc8ff;
+    --spring:#6fd08c;
+    --summer:#ffb445;
+    --autumn:#ff8a5b;
+    --winter:#7fb8ff;
+    --tropic:#c79bff;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);
+    font-size:13px;line-height:1.45;overflow:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  button,select,input{font:inherit;color:inherit}
+
+  /* ---------- app frame ---------- */
+  #app{display:grid;grid-template-rows:auto 1fr auto;height:100vh;height:100dvh}
+
+  header{
+    display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;
+    padding:9px 16px;border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg,#0b1120,#070a12);
+  }
+  header h1{margin:0;font-size:14px;font-weight:650;letter-spacing:.2px}
+  header .sub{color:var(--muted);font-size:12px}
+  header .spacer{flex:1}
+  .scale-warn{
+    font-size:11px;color:#ffcf8a;background:rgba(255,180,69,.09);
+    border:1px solid rgba(255,180,69,.28);border-radius:99px;padding:2px 10px;
+  }
+  .credit{
+    font-size:11px;color:var(--muted);white-space:nowrap;
+    display:flex;align-items:baseline;gap:6px;
+  }
+  .credit b{color:var(--text);font-weight:600}
+  .credit a{color:var(--summer);text-decoration:none}
+  .credit a:hover{text-decoration:underline}
+  .credit .sep{color:var(--line-2)}
+
+  main{
+    display:grid;
+    grid-template-columns:290px minmax(0,1fr) 340px;
+    min-height:0;
+  }
+  .panel{
+    background:var(--panel);min-height:0;overflow-y:auto;overscroll-behavior:contain;
+    scrollbar-width:thin;scrollbar-color:var(--line-2) transparent;
+  }
+  .panel::-webkit-scrollbar{width:9px}
+  .panel::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:9px;border:3px solid var(--panel)}
+  .panel.left{border-right:1px solid var(--line)}
+  .panel.right{border-left:1px solid var(--line);display:flex;flex-direction:column;overflow:hidden}
+
+  .stage{position:relative;min-width:0;background:#03050a}
+  #orbitCanvas{display:block;width:100%;height:100%}
+
+  /* ---------- panel sections ---------- */
+  .sec{padding:12px 14px;border-bottom:1px solid var(--line)}
+  .sec:last-child{border-bottom:none}
+  .sec h2{
+    margin:0 0 9px;font-size:10.5px;font-weight:700;letter-spacing:.13em;
+    text-transform:uppercase;color:var(--dim);
+  }
+  label.f{display:block;margin-bottom:8px}
+  label.f > span{display:block;font-size:11px;color:var(--muted);margin-bottom:3px}
+  select,input[type=date],input[type=number]{
+    width:100%;background:var(--panel-2);border:1px solid var(--line-2);
+    border-radius:6px;padding:6px 8px;font-size:12.5px;
+  }
+  select:focus,input:focus{outline:2px solid rgba(91,200,255,.45);outline-offset:0;border-color:transparent}
+
+  /* ---------- readouts ---------- */
+  .season-card{
+    border:1px solid var(--line-2);border-radius:9px;padding:11px 12px;
+    background:var(--panel-2);position:relative;overflow:hidden;
+  }
+  .season-card::before{
+    content:"";position:absolute;inset:0 auto 0 0;width:3px;background:var(--sc,var(--dim));
+  }
+  .season-head{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+  .season-name{font-size:19px;font-weight:660;letter-spacing:-.01em;color:var(--sc,var(--text))}
+  .season-count{
+    font-size:10.5px;padding:2px 8px;border-radius:99px;white-space:nowrap;
+    color:var(--sc,var(--muted));border:1px solid currentColor;opacity:.85;
+  }
+  .season-count:empty{display:none}
+
+  /*  Label / value grid.  Both definitions get the same type size so
+      neither looks like a footnote to the other.  */
+  .season-defs{
+    display:grid;grid-template-columns:auto 1fr;gap:2px 10px;
+    margin:8px 0 0;padding-top:8px;border-top:1px solid var(--line-2);
+  }
+  .season-defs dt{font-size:11.5px;color:var(--muted)}
+  .season-defs dd{margin:0;font-size:11.5px;color:var(--text)}
+  .season-defs dd b{font-weight:620}
+  .season-defs dd span{color:var(--muted)}
+
+  .season-sub{font-size:11.5px;color:var(--muted);margin-top:8px}
+  .badges{display:flex;flex-wrap:wrap;gap:5px;margin-top:9px}
+  .badge{
+    font-size:10.5px;padding:2px 8px;border-radius:99px;
+    border:1px solid var(--line-2);color:var(--muted);background:rgba(255,255,255,.02);
+  }
+  .badge.warn{color:#ffcf8a;border-color:rgba(255,180,69,.35);background:rgba(255,180,69,.08)}
+  .badge.cold{color:#a9cdff;border-color:rgba(127,184,255,.35);background:rgba(127,184,255,.08)}
+  .badge.trop{color:#d9c0ff;border-color:rgba(199,155,255,.35);background:rgba(199,155,255,.08)}
+
+  dl.stats{display:grid;grid-template-columns:1fr auto;gap:5px 10px;margin:0}
+  dl.stats dt{color:var(--muted);font-size:11.5px;min-width:0}
+  dl.stats dd{margin:0;font-family:var(--mono);font-size:12.5px;text-align:right;font-variant-numeric:tabular-nums}
+  dl.stats dd.hi{color:var(--sun)}
+  dl.stats dd.cool{color:var(--cool)}
+  .hint{font-size:11px;color:var(--dim);margin-top:8px;line-height:1.4}
+
+  /* ---------- distance / misconception ---------- */
+  .distbar{height:6px;border-radius:99px;background:var(--panel-2);border:1px solid var(--line-2);position:relative;margin:8px 0 5px}
+  .distbar i{position:absolute;top:-3px;width:2px;height:10px;background:var(--cool);border-radius:2px;transition:left .18s}
+  .distlabels{display:flex;justify-content:space-between;font-size:10px;color:var(--dim);font-family:var(--mono)}
+  .myth{
+    margin-top:9px;font-size:11.5px;line-height:1.45;color:#ffd9a6;
+    background:rgba(255,180,69,.07);border:1px solid rgba(255,180,69,.22);
+    border-radius:7px;padding:8px 10px;
+  }
+  .myth strong{color:#ffb445}
+
+  /* ---------- tour ---------- */
+  .tour-body{font-size:12px;color:var(--text);min-height:84px}
+  .tour-body b{color:var(--cool);font-weight:620}
+  .tour-nav{display:flex;align-items:center;gap:7px;margin-top:9px}
+  .tour-dots{display:flex;gap:4px;flex:1}
+  .tour-dots i{width:5px;height:5px;border-radius:99px;background:var(--line-2)}
+  .tour-dots i.on{background:var(--cool)}
+
+  /* ---------- buttons ---------- */
+  .btn{
+    background:var(--panel-2);border:1px solid var(--line-2);border-radius:6px;
+    padding:5px 10px;font-size:11.5px;cursor:pointer;transition:.13s;white-space:nowrap;
+  }
+  .btn:hover{background:#16203a;border-color:#3a4a6b}
+  .btn:active{transform:translateY(1px)}
+  .btn.on{background:rgba(91,200,255,.14);border-color:rgba(91,200,255,.5);color:#bfe6ff}
+  .btn.primary{background:rgba(255,180,69,.15);border-color:rgba(255,180,69,.45);color:#ffcf8a}
+  .btn:disabled{opacity:.4;cursor:default}
+  .btn-row{display:flex;gap:6px;flex-wrap:wrap}
+
+  /* ---------- right panel tabs ---------- */
+  .tabs{display:flex;gap:2px;padding:8px 10px 0;border-bottom:1px solid var(--line);flex-shrink:0}
+  .tab{
+    background:none;border:none;border-bottom:2px solid transparent;
+    padding:6px 11px 8px;font-size:12px;color:var(--muted);cursor:pointer;
+  }
+  .tab.on{color:var(--text);border-bottom-color:var(--sun)}
+  .tabpane{display:none;flex:1;min-height:0;flex-direction:column;overflow-y:auto}
+  .tabpane.on{display:flex}
+  #skyWrap{position:relative;flex:1;min-height:240px}
+  #skyCanvas{display:block;width:100%;height:100%}
+  .sky-legend{
+    position:absolute;left:9px;bottom:8px;font-size:10.5px;color:var(--muted);
+    display:flex;flex-direction:column;gap:2px;pointer-events:none;
+  }
+  .sky-legend span{display:flex;align-items:center;gap:5px}
+  .sky-legend i{width:13px;height:2px;border-radius:2px;flex-shrink:0}
+  .sky-facts{padding:10px 12px;border-top:1px solid var(--line);flex-shrink:0}
+  .graph{width:100%;display:block}
+  .graph-cap{font-size:11px;color:var(--muted);padding:0 12px 12px;line-height:1.4}
+
+  /* ---------- overlays on 3D stage ---------- */
+  .stage-tl{position:absolute;top:10px;left:12px;pointer-events:none}
+  .stage-tl .ttl{font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--dim);font-weight:700}
+  .stage-tr{position:absolute;top:9px;right:12px;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;max-width:64%}
+  .stage-bl{
+    position:absolute;left:12px;bottom:10px;font-size:10.5px;color:var(--dim);
+    display:flex;flex-direction:column;gap:3px;pointer-events:none;
+  }
+  .stage-bl span{display:flex;align-items:center;gap:6px}
+  .stage-bl i{width:9px;height:9px;border-radius:2px;flex-shrink:0}
+  .stage-hint{position:absolute;right:12px;bottom:10px;font-size:10.5px;color:var(--dim);pointer-events:none}
+
+  /* ---------- timeline ---------- */
+  footer{
+    border-top:1px solid var(--line);background:linear-gradient(0deg,#0b1120,#070a12);
+    padding:9px 16px 11px;display:flex;flex-direction:column;gap:8px;
+  }
+  .tl-top{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+  .tl-date{
+    font-family:var(--mono);font-size:15px;font-weight:600;letter-spacing:-.01em;
+    min-width:120px;font-variant-numeric:tabular-nums;
+  }
+  input[type=date]{width:auto;min-width:146px}
+  .scrub-wrap{position:relative}
+  input[type=range]{width:100%;margin:0;accent-color:var(--sun);height:18px;display:block}
+  .months{
+    display:grid;grid-template-columns:repeat(12,1fr);font-size:9.5px;color:var(--dim);
+    font-family:var(--mono);letter-spacing:.04em;margin-top:-1px;
+  }
+  .months span{text-align:center}
+  .marks{position:relative;height:0;pointer-events:none;z-index:2}
+  .marks i{position:absolute;top:-13px;width:2px;height:10px;border-radius:2px;background:var(--line-2)}
+  .marks i.eq{background:#6fd08c;box-shadow:0 0 5px rgba(111,208,140,.6)}
+  .marks i.so{background:#ffb445;box-shadow:0 0 5px rgba(255,180,69,.6)}
+
+  .speed{display:flex;align-items:center;gap:5px;color:var(--muted);font-size:11px}
+
+  /* ---------- loading / error ---------- */
+  #boot{
+    position:fixed;inset:0;display:grid;place-items:center;background:var(--bg);z-index:50;
+    transition:opacity .35s;font-size:12px;color:var(--muted);
+  }
+  #boot.gone{opacity:0;pointer-events:none}
+  #boot .bootin{text-align:center}
+  #boot .ring{
+    width:34px;height:34px;margin:0 auto 12px;border-radius:50%;
+    border:2px solid var(--line-2);border-top-color:var(--sun);animation:spin 1s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg)}}
+  #fatal{
+    position:fixed;inset:0;display:none;place-items:center;background:var(--bg);z-index:60;padding:30px;
+  }
+  #fatal .box{max-width:540px;border:1px solid rgba(255,120,120,.4);background:rgba(255,80,80,.06);border-radius:10px;padding:18px}
+  #fatal h3{margin:0 0 8px;color:#ff9b9b;font-size:14px}
+  #fatal pre{white-space:pre-wrap;font-family:var(--mono);font-size:11px;color:var(--muted);margin:0}
+
+  /* ---------- responsive ---------- */
+  @media (max-width:1180px){
+    main{grid-template-columns:252px minmax(0,1fr) 302px}
+  }
+  @media (max-width:960px){
+    body{overflow:auto}
+    #app{height:auto}
+    main{grid-template-columns:1fr;grid-template-rows:auto 62vh auto}
+    .panel.left{border-right:none;border-bottom:1px solid var(--line)}
+    .panel.right{border-left:none;border-top:1px solid var(--line);height:74vh}
+    footer{position:sticky;bottom:0;z-index:5}
+  }
+</style>
+</head>
+<body>
+<div id="boot"><div class="bootin"><div class="ring"></div>Loading three.js &amp; Earth textures…</div></div>
+<div id="fatal"><div class="box"><h3>Could not start the simulator</h3><pre id="fatalMsg"></pre></div></div>
+
+<div id="app">
+
+  <header>
+    <h1>Why Earth Has Seasons</h1>
+    <span class="sub">Axial tilt + orbit → the season at any place, on any date</span>
+    <span class="spacer"></span>
+    <span class="scale-warn" id="scaleWarn">Sizes not to scale · orbit shape is real</span>
+    <span class="credit">
+      Created by <b>Mr Lau Chin Hang</b>
+      <span class="sep">·</span>
+      🏫 <a href="https://www.instagram.com/curiominds.inc/" target="_blank" rel="noopener noreferrer">@curiominds.inc</a>
+      <span class="sep">·</span>
+      ▶ <a href="https://www.youtube.com/@Curiominds.inc88" target="_blank" rel="noopener noreferrer">YouTube</a>
+      <span class="sep">·</span>
+      🌐 <a href="https://curiomindsinc.pages.dev/" target="_blank" rel="noopener noreferrer">Website</a>
+    </span>
+  </header>
+
+  <main>
+
+    <!-- ======================= LEFT PANEL ======================= -->
+    <aside class="panel left">
+
+      <div class="sec">
+        <h2>Your location</h2>
+        <label class="f"><span>Country</span>
+          <select id="countrySel"></select>
+        </label>
+        <label class="f" style="margin-bottom:0"><span>City</span>
+          <select id="citySel"></select>
+        </label>
+        <div class="hint" id="coordHint"></div>
+      </div>
+
+      <div class="sec">
+        <h2>Season there, on this date</h2>
+        <div class="season-card" id="seasonCard">
+          <div class="season-head">
+            <span class="season-name" id="seasonName">—</span>
+            <span class="season-count" id="seasonCount"></span>
+          </div>
+          <!--  Two definitions, shown at equal weight.  Central European
+                sources call 1 September autumn while the Sun says summer
+                until the equinox; burying either one reads as an error.  -->
+          <dl class="season-defs" id="seasonDefs">
+            <dt>Astronomical</dt>
+            <dd><b id="defAstroName">—</b> <span id="defAstroWhen"></span></dd>
+            <dt>Meteorological</dt>
+            <dd><b id="defMetName">—</b> <span id="defMetWhen"></span></dd>
+          </dl>
+          <div class="season-sub" id="seasonSub"></div>
+          <div class="badges" id="seasonBadges"></div>
+        </div>
+        <div class="hint" id="seasonNote"></div>
+      </div>
+
+      <div class="sec">
+        <h2>The Sun from there</h2>
+        <dl class="stats">
+          <dt>Daylight length</dt>            <dd class="hi" id="stDaylight">—</dd>
+          <dt>Sunrise <span style="opacity:.6">(solar)</span></dt> <dd id="stRise">—</dd>
+          <dt>Sunset <span style="opacity:.6">(solar)</span></dt>  <dd id="stSet">—</dd>
+          <dt>Sun height at noon</dt>         <dd class="hi" id="stNoonAlt">—</dd>
+          <dt>Noon strength vs. overhead</dt> <dd id="stFlux">—</dd>
+          <dt>Solar energy per day</dt>       <dd class="cool" id="stInsol">—</dd>
+          <dt>Change since yesterday</dt>     <dd id="stTrend">—</dd>
+        </dl>
+        <div class="hint">Times are <b>local solar time</b> from your longitude — no time-zone or daylight-saving offset. Solar noon is when the Sun is truly highest.</div>
+      </div>
+
+      <div class="sec">
+        <h2>Where the Sun is overhead</h2>
+        <dl class="stats">
+          <dt>Sub-solar latitude</dt> <dd class="hi" id="stSubLat">—</dd>
+          <dt>Sun&rsquo;s declination</dt> <dd id="stDec">—</dd>
+          <dt>Ecliptic longitude</dt> <dd id="stLam">—</dd>
+          <dt>Days to next turning point</dt> <dd id="stNextEv">—</dd>
+        </dl>
+        <div class="hint" id="subHint"></div>
+      </div>
+
+      <div class="sec">
+        <h2>Distance to the Sun</h2>
+        <dl class="stats">
+          <dt>Right now</dt> <dd class="cool" id="stDist">—</dd>
+          <dt>Compared to average</dt> <dd id="stDistPct">—</dd>
+        </dl>
+        <div class="distbar"><i id="distMark" style="left:50%"></i></div>
+        <div class="distlabels"><span>147.1M km<br>perihelion</span><span style="text-align:right">152.1M km<br>aphelion</span></div>
+        <div class="myth" id="mythBox"></div>
+      </div>
+
+      <div class="sec">
+        <h2>Guided tour</h2>
+        <div class="tour-body" id="tourBody"></div>
+        <div class="tour-nav">
+          <div class="tour-dots" id="tourDots"></div>
+          <button class="btn" id="tourPrev">‹ Back</button>
+          <button class="btn primary" id="tourNext">Next ›</button>
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- ======================= CENTRE STAGE ======================= -->
+    <section class="stage">
+      <canvas id="orbitCanvas"></canvas>
+
+      <div class="stage-tl"><div class="ttl">Orbit view</div></div>
+
+      <div class="stage-tr">
+        <button class="btn" data-cam="side">Edge-on</button>
+        <button class="btn" data-cam="top">Top-down</button>
+        <button class="btn" data-cam="earth">Zoom to Earth</button>
+        <button class="btn on" id="tglRings">Circles</button>
+        <button class="btn on" id="tglAxis">Axis</button>
+        <button class="btn on" id="tglRays">Sunlight</button>
+      </div>
+
+      <div class="stage-bl">
+        <span><i style="background:#ffb445"></i>Sun</span>
+        <span><i style="background:#5bc8ff"></i>Your city</span>
+        <span><i style="background:#ff5f5f"></i>Sub-solar point (Sun overhead)</span>
+        <span><i style="background:#6fd08c"></i>Equator &nbsp;<i style="background:#c79bff"></i>Tropics &nbsp;<i style="background:#7fb8ff"></i>Polar circles</span>
+      </div>
+      <div class="stage-hint">drag to orbit · scroll to zoom · right-drag to pan</div>
+    </section>
+
+    <!-- ======================= RIGHT PANEL ======================= -->
+    <aside class="panel right">
+      <div class="tabs">
+        <button class="tab on" data-tab="sky">Sky at your city</button>
+        <button class="tab" data-tab="graph">Across the year</button>
+      </div>
+
+      <div class="tabpane on" id="pane-sky">
+        <div id="skyWrap">
+          <canvas id="skyCanvas"></canvas>
+          <div class="sky-legend">
+            <span><i style="background:#ffb445"></i>this date</span>
+            <span><i style="background:#ffd9a6;opacity:.5"></i>June solstice</span>
+            <span><i style="background:#7fb8ff;opacity:.5"></i>December solstice</span>
+            <span><i style="background:#6fd08c;opacity:.5"></i>equinox</span>
+          </div>
+        </div>
+        <div class="sky-facts">
+          <dl class="stats">
+            <dt>Sunrise direction</dt> <dd id="skRiseAz">—</dd>
+            <dt>Sunset direction</dt>  <dd id="skSetAz">—</dd>
+            <dt>Noon Sun height</dt>   <dd class="hi" id="skNoonAlt">—</dd>
+            <dt>Highest it ever gets here</dt> <dd id="skMaxAlt">—</dd>
+            <dt>Lowest noon of the year</dt>   <dd id="skMinAlt">—</dd>
+          </dl>
+          <div class="hint">The Sun traces a flatter, shorter arc in winter — less time above the horizon <em>and</em> a lower angle. Both cut the heat.</div>
+        </div>
+      </div>
+
+      <div class="tabpane" id="pane-graph">
+        <canvas class="graph" id="gDaylight" height="188"></canvas>
+        <div class="graph-cap">Hours of daylight through the year at your city.</div>
+        <canvas class="graph" id="gAltitude" height="188"></canvas>
+        <div class="graph-cap">Height of the Sun at solar noon. Flat sunlight spreads the same energy over more ground.</div>
+        <canvas class="graph" id="gDistance" height="150"></canvas>
+        <div class="graph-cap" id="distCap">Earth&rsquo;s distance from the Sun. Note how small the swing is — and that its minimum sits in <em>January</em>.</div>
+      </div>
+    </aside>
+
+  </main>
+
+  <!-- ======================= TIMELINE ======================= -->
+  <footer>
+    <div class="tl-top">
+      <span class="tl-date" id="dateLabel">—</span>
+      <input type="date" id="dateInput" min="1900-01-01" max="2199-12-31">
+      <button class="btn" id="dayPrev" title="Previous day">‹ Day</button>
+      <button class="btn" id="dayNext" title="Next day">Day ›</button>
+      <button class="btn primary" id="playBtn">▶ Play</button>
+      <span class="speed">
+        speed
+        <select id="speedSel" style="width:auto">
+          <option value="0.25">¼ day/s</option>
+          <option value="1">1 day/s</option>
+          <option value="4" selected>4 days/s</option>
+          <option value="12">12 days/s</option>
+          <option value="30">30 days/s</option>
+        </select>
+      </span>
+      <span class="spacer" style="flex:1"></span>
+      <div class="btn-row" id="eventBtns"></div>
+      <button class="btn" id="todayBtn">Today</button>
+    </div>
+    <div class="scrub-wrap">
+      <div class="marks" id="tlMarks"></div>
+      <input type="range" id="scrub" min="0" max="364" step="1" value="0">
+      <div class="months">
+        <span>JAN</span><span>FEB</span><span>MAR</span><span>APR</span><span>MAY</span><span>JUN</span>
+        <span>JUL</span><span>AUG</span><span>SEP</span><span>OCT</span><span>NOV</span><span>DEC</span>
+      </div>
+    </div>
+  </footer>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.149.0/three.min.js"></script>
+<script>
+/* =====================================================================
+   Why Earth Has Seasons — orbital + solar-geometry engine
+   ---------------------------------------------------------------------
+   Model: Keplerian two-body Earth orbit, elements from Meeus ch.25
+   (low-precision solar theory).  Accuracy of the Sun's ecliptic
+   longitude is a few arc-seconds over 1900-2200, which puts the
+   equinox / solstice instants within a couple of minutes of the
+   published values.  Nutation and aberration are ignored.
+   ===================================================================== */
+(function(){
+'use strict';
+
+const D2R = Math.PI / 180, R2D = 180 / Math.PI;
+const TAU = Math.PI * 2;
+const clamp = (v, a, b) => v < a ? a : (v > b ? b : v);
+const norm360 = x => { x %= 360; return x < 0 ? x + 360 : x; };
+const norm180 = x => { x = norm360(x); return x > 180 ? x - 360 : x; };
+
+/* ---------------------------------------------------------------- time */
+
+// Gregorian calendar date (UTC) -> Julian Day. month is 1-12.
+function julianDay(y, m, d, hoursUTC){
+  hoursUTC = hoursUTC || 0;
+  if (m <= 2){ y -= 1; m += 12; }
+  const A = Math.floor(y / 100);
+  const B = 2 - A + Math.floor(A / 4);
+  return Math.floor(365.25 * (y + 4716)) + Math.floor(30.6001 * (m + 1))
+       + d + B - 1524.5 + hoursUTC / 24;
+}
+
+// Julian Day -> {year, month, day, hour} in UTC.
+function jdToDate(jd){
+  const z = Math.floor(jd + 0.5), f = jd + 0.5 - z;
+  let A = z;
+  if (z >= 2299161){
+    const a = Math.floor((z - 1867216.25) / 36524.25);
+    A = z + 1 + a - Math.floor(a / 4);
+  }
+  const B = A + 1524;
+  const C = Math.floor((B - 122.1) / 365.25);
+  const Dd = Math.floor(365.25 * C);
+  const E = Math.floor((B - Dd) / 30.6001);
+  const dayF = B - Dd - Math.floor(30.6001 * E) + f;
+  const month = E < 14 ? E - 1 : E - 13;
+  const year = month > 2 ? C - 4716 : C - 4715;
+  const day = Math.floor(dayF);
+  return { year: year, month: month, day: day, hour: (dayF - day) * 24 };
+}
+
+const isLeap = y => (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
+const daysInYear = y => isLeap(y) ? 366 : 365;
+
+function dayOfYear(y, m, d){
+  return Math.round(julianDay(y, m, d, 0) - julianDay(y, 1, 1, 0)) + 1;   // 1-based
+}
+function fromDayOfYear(y, n){                                            // 1-based
+  return jdToDate(julianDay(y, 1, 1, 0) + (n - 1) + 0.0001);
+}
+
+/* -------------------------------------------------------- sun position */
+
+// Solve Kepler's equation  E - e*sin E = M  (all radians) by Newton-Raphson.
+function keplerE(M, e){
+  let E = M + e * Math.sin(M) * (1 + e * Math.cos(M));
+  for (let i = 0; i < 30; i++){
+    const dE = (E - e * Math.sin(E) - M) / (1 - e * Math.cos(E));
+    E -= dE;
+    if (Math.abs(dE) < 1e-13) break;
+  }
+  return E;
+}
+
+/*  Geocentric Sun.  Returns degrees except r (AU) and eot (minutes).
+    lam = apparent ecliptic longitude, dec = declination,
+    ra  = right ascension, eot = equation of time.                     */
+function sunPosition(jd){
+  const n = jd - 2451545.0;                       // days from J2000.0
+
+  const L0 = norm360(280.46646 + 0.9856473599  * n);   // mean longitude
+  const M  = norm360(357.52911 + 0.98560028    * n);   // mean anomaly
+  const e  = 0.016708634 - 1.151e-9 * n;               // eccentricity
+  // longitude of perigee of the Sun = L0 - M, kept exactly consistent
+  const peri = 282.93735 + (0.9856473599 - 0.98560028) * n;
+
+  const E  = keplerE(M * D2R, e);
+  const nu = 2 * Math.atan2(Math.sqrt(1 + e) * Math.sin(E / 2),
+                            Math.sqrt(1 - e) * Math.cos(E / 2));
+  const a  = 1.000001018;
+  const r  = a * (1 - e * Math.cos(E));                // AU
+
+  const lamTrue = norm360(nu * R2D + peri);            // geometric longitude
+
+  /*  Apparent longitude.  Two corrections, both small but both worth
+      keeping: without them the computed equinox instants land a
+      consistent ~15 minutes early against published values.           */
+  const T     = n / 36525;
+  const omega = norm360(125.04452 - 1934.136261 * T);  // lunar ascending node
+  const cosOm = Math.cos(omega * D2R), sinOm = Math.sin(omega * D2R);
+  const dPsi  = -0.004778 * sinOm;                     // nutation in longitude, deg
+  const aberr = -0.0056916 / r;                        // annual aberration, deg
+
+  const lam = norm360(lamTrue + dPsi + aberr);         // apparent longitude
+  const eps = 23.4392911 - 3.563e-7 * n + 0.00256 * cosOm;   // true obliquity
+
+  const sl = Math.sin(lam * D2R), cl = Math.cos(lam * D2R);
+  const se = Math.sin(eps * D2R), ce = Math.cos(eps * D2R);
+
+  const dec = Math.asin(clamp(se * sl, -1, 1)) * R2D;
+  const ra  = norm360(Math.atan2(ce * sl, cl) * R2D);
+
+  // Meeus 28.3
+  const eot = 4 * norm180(L0 - 0.0057183 - ra + dPsi * ce);   // minutes
+
+  return { n:n, L0:L0, M:M, e:e, nu:nu * R2D, r:r,
+           lam:lam, lamTrue:lamTrue, eps:eps, dPsi:dPsi,
+           dec:dec, ra:ra, eot:eot };
+}
+
+// Greenwich mean sidereal time, degrees.
+function gmstDeg(jd){
+  return norm360(280.46061837 + 360.98564736629 * (jd - 2451545.0));
+}
+
+// Point on Earth where the Sun is exactly overhead.
+function subsolarPoint(jd){
+  const s = sunPosition(jd);
+  return { lat: s.dec, lon: norm180(s.ra - gmstDeg(jd)), s: s };
+}
+
+/* ------------------------------------------------- daily solar circumstances */
+
+const H_RISE = -0.833;                 // deg: refraction + solar semi-diameter
+const AU_KM  = 149597870.7;
+const S0     = 1361;                   // solar constant, W/m^2
+
+/*  Everything a place needs for one calendar day.
+    Times come back as local MEAN solar time (hours) — longitude only,
+    no time zone, no daylight saving.                                    */
+function dayCircumstances(year, month, day, latDeg, lonDeg){
+  // iterate once so declination is evaluated at local solar noon
+  let jd = julianDay(year, month, day, 12 - lonDeg / 15);
+  let s  = sunPosition(jd);
+  jd = julianDay(year, month, day, 12 - lonDeg / 15 - s.eot / 60);
+  s  = sunPosition(jd);
+
+  const phi = latDeg * D2R, dec = s.dec * D2R;
+  const sinPhi = Math.sin(phi), cosPhi = Math.cos(phi);
+  const sinDec = Math.sin(dec), cosDec = Math.cos(dec);
+
+  const cosH = (Math.sin(H_RISE * D2R) - sinPhi * sinDec) / (cosPhi * cosDec);
+
+  let daylight, H0deg, state, sunrise = null, sunset = null;
+  if (cosH < -1){ daylight = 24; H0deg = 180; state = 'polar-day'; }
+  else if (cosH > 1){ daylight = 0; H0deg = 0; state = 'polar-night'; }
+  else {
+    H0deg = Math.acos(cosH) * R2D;
+    daylight = 2 * H0deg / 15;
+    state = 'normal';
+  }
+
+  const noonLMT = 12 - s.eot / 60;                       // local mean solar time
+  if (state === 'normal'){
+    sunrise = noonLMT - daylight / 2;
+    sunset  = noonLMT + daylight / 2;
+  }
+
+  // altitude of the Sun at solar noon (and at solar midnight, for polar day)
+  const noonAlt = 90 - Math.abs(latDeg - s.dec);
+  const midnightAlt = -(90 - Math.abs(-latDeg - s.dec));
+
+  // instantaneous energy per m^2 at noon, relative to the Sun straight up
+  const fluxNoon = noonAlt > 0 ? Math.sin(noonAlt * D2R) : 0;
+
+  // daily mean insolation at the top of the atmosphere, kWh/m^2/day
+  const H0 = H0deg * D2R;
+  const distFactor = Math.pow(1 / s.r, 2);
+  const q = (S0 / Math.PI) * distFactor *
+            (H0 * sinPhi * sinDec + cosPhi * cosDec * Math.sin(H0));
+  const insolation = Math.max(0, q) * 24 / 1000;         // kWh/m^2/day
+
+  return {
+    jd:jd, sun:s, daylight:daylight, H0:H0deg, state:state,
+    sunrise:sunrise, sunset:sunset, noonLMT:noonLMT,
+    noonAlt:noonAlt, midnightAlt:midnightAlt,
+    fluxNoon:fluxNoon, insolation:insolation,
+    distKm:s.r * AU_KM
+  };
+}
+
+// Sun altitude/azimuth for an hour angle H (degrees, 0 = solar noon).
+function altAz(latDeg, decDeg, Hdeg){
+  const phi = latDeg * D2R, dec = decDeg * D2R, H = Hdeg * D2R;
+  const sinAlt = Math.sin(phi) * Math.sin(dec) +
+                 Math.cos(phi) * Math.cos(dec) * Math.cos(H);
+  const alt = Math.asin(clamp(sinAlt, -1, 1));
+  const az = Math.atan2(-Math.sin(H) * Math.cos(dec),
+                        Math.cos(phi) * Math.sin(dec) -
+                        Math.sin(phi) * Math.cos(dec) * Math.cos(H));
+  return { alt: alt * R2D, az: norm360(az * R2D) };     // az from true North, eastward
+}
+
+/* --------------------------------------- equinoxes, solstices, overhead dates */
+
+/*  Find the instant in `year` when the Sun's ecliptic longitude equals
+    `target` (0/90/180/270).  Scans day by day for a genuine ascending
+    crossing — a wrap from +180 to -180 is rejected — then bisects.      */
+function findLongitudeCrossing(year, target){
+  const start = julianDay(year, 1, 1, 0);
+  const end   = start + daysInYear(year) + 1;
+  const f = jd => norm180(sunPosition(jd).lam - target);
+
+  let prevJd = start, prevF = f(start);
+  for (let jd = start + 1; jd <= end; jd += 1){
+    const cur = f(jd);
+    if (prevF < 0 && cur >= 0 && (cur - prevF) < 180){
+      let lo = prevJd, hi = jd;
+      for (let i = 0; i < 60; i++){
+        const mid = (lo + hi) / 2;
+        if (f(mid) < 0) lo = mid; else hi = mid;
+      }
+      return (lo + hi) / 2;
+    }
+    prevJd = jd; prevF = cur;
+  }
+  return null;
+}
+
+const EVENT_DEFS = [
+  { lam:0,   key:'marEq', label:'March equinox',     short:'Mar equinox',  kind:'eq' },
+  { lam:90,  key:'junSol', label:'June solstice',    short:'Jun solstice', kind:'so' },
+  { lam:180, key:'sepEq',  label:'September equinox', short:'Sep equinox', kind:'eq' },
+  { lam:270, key:'decSol', label:'December solstice', short:'Dec solstice',kind:'so' }
+];
+
+const _eventCache = {};
+function yearEvents(year){
+  if (_eventCache[year]) return _eventCache[year];
+  const out = EVENT_DEFS.map(def => {
+    const jd = findLongitudeCrossing(year, def.lam);
+    return Object.assign({}, def, { jd: jd, date: jdToDate(jd) });
+  });
+  _eventCache[year] = out;
+  return out;
+}
+
+/*  Dates when the Sun stands directly overhead at a latitude inside the
+    tropics.  Returns 0, 1 or 2 dates.                                    */
+function overheadDates(year, latDeg, lonDeg){
+  const eps = sunPosition(julianDay(year, 7, 1, 0)).eps;
+  const ratio = Math.sin(latDeg * D2R) / Math.sin(eps * D2R);
+  if (Math.abs(ratio) > 1) return [];
+  const l1 = norm360(Math.asin(clamp(ratio, -1, 1)) * R2D);
+  const l2 = norm360(180 - l1);
+  const targets = Math.abs(norm180(l1 - l2)) < 0.001 ? [l1] : [l1, l2];
+  const shift = (lonDeg || 0) / 360;      // report the LOCAL calendar date
+  return targets
+    .map(t => findLongitudeCrossing(year, t))
+    .filter(jd => jd !== null)
+    .map(jd => jdToDate(jd + shift))
+    .sort((a, b) => (a.month * 100 + a.day) - (b.month * 100 + b.day));
+}
+
+/* ------------------------------------------------------------- seasons */
+
+const TROPIC = 23.4392911, POLAR = 90 - TROPIC;
+
+const SEASON_COLOR = { Spring:'#6fd08c', Summer:'#ffb445', Autumn:'#ff8a5b', Winter:'#7fb8ff' };
+
+/*  Astronomical season for a latitude at a given solar longitude, plus
+    honest handling of the tropics, where axial tilt does not produce a
+    hot/cold cycle worth calling "summer" or "winter".                   */
+function seasonFor(lamDeg, latDeg){
+  const north = latDeg >= 0;
+  const q = Math.floor(norm360(lamDeg) / 90);            // 0..3
+  const NORTH = ['Spring', 'Summer', 'Autumn', 'Winter'];
+  const SOUTH = ['Autumn', 'Winter', 'Spring', 'Summer'];
+  const name = north ? NORTH[q] : SOUTH[q];
+
+  const absLat = Math.abs(latDeg);
+  let band, headline, note;
+
+  if (absLat <= 10){
+    band = 'equatorial';
+    headline = 'No marked seasons';
+    note = 'Within about 10° of the equator the Sun is high all year and day length barely ' +
+           'changes, so there is no thermal summer or winter. What people track here is the ' +
+           'wet and dry seasons, driven by the rain belt (ITCZ) sliding north and south — ' +
+           'itself a consequence of the same sub-solar march you see on the globe.';
+  } else if (absLat < TROPIC){
+    band = 'tropical';
+    headline = name;
+    note = 'This is inside the tropics: the Sun still passes directly overhead twice a year, ' +
+           'and the temperature swing between "' + name + '" and the opposite season is small. ' +
+           'Wet and dry seasons usually matter more here than warm and cold.';
+  } else if (absLat >= POLAR){
+    band = 'polar';
+    headline = name;
+    note = 'Beyond the ' + (north ? 'Arctic' : 'Antarctic') + ' Circle the tilt is extreme ' +
+           'enough that the Sun can stay up for a full 24 hours in summer and never rise at ' +
+           'all in winter.';
+  } else {
+    band = 'temperate';
+    headline = name;
+    note = 'A mid-latitude place, where axial tilt produces the classic four-season cycle: ' +
+           'long high-Sun days in summer, short low-Sun days in winter.';
+  }
+  // an equatorial place gets the tropics colour: calling it "summer orange"
+  // would undercut the very point the label is making
+  const color = band === 'equatorial' ? '#c79bff' : SEASON_COLOR[name];
+  return { name:name, headline:headline, band:band, note:note,
+           color:color, quarter:q, hemisphere: north ? 'Northern' : 'Southern' };
+}
+
+/*  Meteorological season — fixed three-month blocks. Shown for contrast. */
+function meteorologicalSeason(month, latDeg){
+  const NORTH = { 12:'Winter', 1:'Winter', 2:'Winter', 3:'Spring', 4:'Spring', 5:'Spring',
+                  6:'Summer', 7:'Summer', 8:'Summer', 9:'Autumn', 10:'Autumn', 11:'Autumn' };
+  const n = NORTH[month];
+  if (latDeg >= 0) return n;
+  return { Winter:'Summer', Spring:'Autumn', Summer:'Winter', Autumn:'Spring' }[n];
+}
+
+/* --------------------------------------------------------------- export */
+window.Astro = {
+  D2R:D2R, R2D:R2D, TAU:TAU, clamp:clamp, norm360:norm360, norm180:norm180,
+  julianDay:julianDay, jdToDate:jdToDate, isLeap:isLeap, daysInYear:daysInYear,
+  dayOfYear:dayOfYear, fromDayOfYear:fromDayOfYear,
+  sunPosition:sunPosition, gmstDeg:gmstDeg, subsolarPoint:subsolarPoint,
+  dayCircumstances:dayCircumstances, altAz:altAz,
+  findLongitudeCrossing:findLongitudeCrossing, yearEvents:yearEvents,
+  overheadDates:overheadDates, seasonFor:seasonFor,
+  meteorologicalSeason:meteorologicalSeason,
+  EVENT_DEFS:EVENT_DEFS, TROPIC:TROPIC, POLAR:POLAR, AU_KM:AU_KM, S0:S0
+};
+})();
+</script>
+<script>
+/* =====================================================================
+   Locations.  One line per country:
+     "Country|City,lat,lon|City,lat,lon|..."
+   Latitude is positive north, longitude positive east.
+   Large or latitudinally-stretched countries get several cities so the
+   figures mean something -- a single national centroid would be useless
+   for Canada, Chile or Indonesia.
+   ===================================================================== */
+window.PLACES = [
+"Afghanistan|Kabul,34.53,69.17|Herat,34.35,62.20|Kandahar,31.62,65.72",
+"Albania|Tirana,41.33,19.82",
+"Algeria|Algiers,36.75,3.06|Tamanrasset,22.79,5.53",
+"Andorra|Andorra la Vella,42.51,1.52",
+"Angola|Luanda,-8.84,13.23|Lubango,-14.92,13.49",
+"Antarctica (research stations)|McMurdo Station,-77.85,166.67|Amundsen-Scott South Pole,-89.99,0.00|Rothera,-67.57,-68.13|Casey,-66.28,110.53",
+"Antigua and Barbuda|Saint John's,17.12,-61.85",
+"Argentina|Buenos Aires,-34.61,-58.38|Cordoba,-31.42,-64.19|Salta,-24.79,-65.41|Ushuaia,-54.80,-68.30",
+"Armenia|Yerevan,40.18,44.51",
+"Australia|Sydney,-33.87,151.21|Melbourne,-37.81,144.96|Brisbane,-27.47,153.03|Perth,-31.95,115.86|Darwin,-12.46,130.84|Hobart,-42.88,147.33|Alice Springs,-23.70,133.88|Canberra,-35.28,149.13",
+"Austria|Vienna,48.21,16.37|Innsbruck,47.27,11.39",
+"Azerbaijan|Baku,40.41,49.87",
+"Bahamas|Nassau,25.05,-77.35",
+"Bahrain|Manama,26.23,50.59",
+"Bangladesh|Dhaka,23.81,90.41|Chittagong,22.36,91.78",
+"Barbados|Bridgetown,13.11,-59.62",
+"Belarus|Minsk,53.90,27.57",
+"Belgium|Brussels,50.85,4.35",
+"Belize|Belmopan,17.25,-88.77",
+"Benin|Porto-Novo,6.50,2.62",
+"Bhutan|Thimphu,27.47,89.64",
+"Bolivia|La Paz,-16.49,-68.13|Santa Cruz de la Sierra,-17.78,-63.18",
+"Bosnia and Herzegovina|Sarajevo,43.86,18.41",
+"Botswana|Gaborone,-24.63,25.92",
+"Brazil|Brasilia,-15.79,-47.88|Sao Paulo,-23.55,-46.63|Rio de Janeiro,-22.91,-43.17|Manaus,-3.12,-60.02|Boa Vista,2.82,-60.67|Porto Alegre,-30.03,-51.23|Salvador,-12.97,-38.50",
+"Brunei|Bandar Seri Begawan,4.90,114.94",
+"Bulgaria|Sofia,42.70,23.32",
+"Burkina Faso|Ouagadougou,12.37,-1.52",
+"Burundi|Gitega,-3.43,29.93",
+"Cabo Verde|Praia,14.93,-23.51",
+"Cambodia|Phnom Penh,11.56,104.92",
+"Cameroon|Yaounde,3.85,11.50|Douala,4.05,9.77",
+"Canada|Ottawa,45.42,-75.70|Toronto,43.65,-79.38|Vancouver,49.28,-123.12|Montreal,45.50,-73.57|Calgary,51.05,-114.07|Winnipeg,49.90,-97.14|Yellowknife,62.45,-114.37|Iqaluit,63.75,-68.52|Whitehorse,60.72,-135.06|Alert,82.50,-62.35|St. John's,47.56,-52.71",
+"Central African Republic|Bangui,4.39,18.56",
+"Chad|N'Djamena,12.13,15.06",
+"Chile|Santiago,-33.45,-70.67|Antofagasta,-23.65,-70.40|Punta Arenas,-53.16,-70.91|Valparaiso,-33.05,-71.62",
+"China|Beijing,39.90,116.41|Shanghai,31.23,121.47|Guangzhou,23.13,113.26|Harbin,45.80,126.53|Urumqi,43.83,87.62|Lhasa,29.65,91.14|Kunming,25.04,102.72|Sanya,18.25,109.51",
+"Colombia|Bogota,4.71,-74.07|Medellin,6.24,-75.58|Leticia,-4.21,-69.94",
+"Comoros|Moroni,-11.70,43.26",
+"Congo (Republic)|Brazzaville,-4.27,15.28",
+"Congo (Dem. Rep.)|Kinshasa,-4.32,15.31|Lubumbashi,-11.66,27.48",
+"Costa Rica|San Jose,9.93,-84.08",
+"Cote d'Ivoire|Yamoussoukro,6.83,-5.29|Abidjan,5.36,-4.01",
+"Croatia|Zagreb,45.81,15.98",
+"Cuba|Havana,23.11,-82.37",
+"Cyprus|Nicosia,35.19,33.38",
+"Czechia|Prague,50.08,14.44",
+"Denmark|Copenhagen,55.68,12.57|Nuuk (Greenland),64.18,-51.72|Qaanaaq (Greenland),77.47,-69.23|Torshavn (Faroe Islands),62.01,-6.77",
+"Djibouti|Djibouti,11.59,43.15",
+"Dominica|Roseau,15.30,-61.39",
+"Dominican Republic|Santo Domingo,18.49,-69.93",
+"Ecuador|Quito,-0.18,-78.47|Guayaquil,-2.19,-79.89|Puerto Baquerizo (Galapagos),-0.90,-89.61",
+"Egypt|Cairo,30.04,31.24|Aswan,24.09,32.90",
+"El Salvador|San Salvador,13.69,-89.22",
+"Equatorial Guinea|Malabo,3.75,8.78",
+"Eritrea|Asmara,15.34,38.93",
+"Estonia|Tallinn,59.44,24.75",
+"Eswatini|Mbabane,-26.31,31.14",
+"Ethiopia|Addis Ababa,9.03,38.74",
+"Fiji|Suva,-18.14,178.44",
+"Finland|Helsinki,60.17,24.94|Rovaniemi,66.50,25.73|Utsjoki,69.91,27.03",
+"France|Paris,48.86,2.35|Marseille,43.30,5.37|Cayenne (Guyane),4.92,-52.33|Saint-Denis (Reunion),-20.88,55.45|Papeete (Polynesie),-17.54,-149.57|Dumont d'Urville (Antarctica),-66.66,140.00",
+"Gabon|Libreville,0.42,9.47",
+"Gambia|Banjul,13.45,-16.58",
+"Georgia|Tbilisi,41.72,44.79",
+"Germany|Berlin,52.52,13.40|Munich,48.14,11.58|Hamburg,53.55,9.99",
+"Ghana|Accra,5.60,-0.19",
+"Greece|Athens,37.98,23.73|Thessaloniki,40.64,22.94",
+"Grenada|Saint George's,12.06,-61.75",
+"Guatemala|Guatemala City,14.63,-90.51",
+"Guinea|Conakry,9.64,-13.58",
+"Guinea-Bissau|Bissau,11.86,-15.60",
+"Guyana|Georgetown,6.80,-58.16",
+"Haiti|Port-au-Prince,18.59,-72.31",
+"Honduras|Tegucigalpa,14.07,-87.19",
+"Hungary|Budapest,47.50,19.04",
+"Iceland|Reykjavik,64.15,-21.94|Akureyri,65.68,-18.09",
+"India|New Delhi,28.61,77.21|Mumbai,19.08,72.88|Chennai,13.08,80.27|Kolkata,22.57,88.36|Bengaluru,12.97,77.59|Leh,34.16,77.58|Thiruvananthapuram,8.52,76.94",
+"Indonesia|Jakarta,-6.21,106.85|Medan,3.59,98.67|Surabaya,-7.25,112.75|Jayapura,-2.53,140.72|Denpasar (Bali),-8.65,115.22",
+"Iran|Tehran,35.69,51.39|Bandar Abbas,27.18,56.28",
+"Iraq|Baghdad,33.31,44.36|Basra,30.51,47.78",
+"Ireland|Dublin,53.35,-6.26",
+"Israel|Jerusalem,31.77,35.21|Tel Aviv,32.08,34.78",
+"Italy|Rome,41.90,12.50|Milan,45.46,9.19|Palermo,38.12,13.36",
+"Jamaica|Kingston,17.97,-76.79",
+"Japan|Tokyo,35.68,139.65|Sapporo,43.06,141.35|Osaka,34.69,135.50|Naha,26.21,127.68",
+"Jordan|Amman,31.95,35.93",
+"Kazakhstan|Astana,51.17,71.43|Almaty,43.24,76.89",
+"Kenya|Nairobi,-1.29,36.82|Mombasa,-4.04,39.67",
+"Kiribati|Tarawa,1.33,172.98",
+"Kosovo|Pristina,42.66,21.16",
+"Kuwait|Kuwait City,29.38,47.99",
+"Kyrgyzstan|Bishkek,42.87,74.57",
+"Laos|Vientiane,17.97,102.60",
+"Latvia|Riga,56.95,24.11",
+"Lebanon|Beirut,33.89,35.50",
+"Lesotho|Maseru,-29.31,27.48",
+"Liberia|Monrovia,6.30,-10.80",
+"Libya|Tripoli,32.89,13.19",
+"Liechtenstein|Vaduz,47.14,9.52",
+"Lithuania|Vilnius,54.69,25.28",
+"Luxembourg|Luxembourg,49.61,6.13",
+"Madagascar|Antananarivo,-18.88,47.51",
+"Malawi|Lilongwe,-13.96,33.79",
+"Malaysia|Kuala Lumpur,3.14,101.69|Kota Kinabalu,5.98,116.07",
+"Maldives|Male,4.17,73.51",
+"Mali|Bamako,12.64,-8.00",
+"Malta|Valletta,35.90,14.51",
+"Marshall Islands|Majuro,7.09,171.38",
+"Mauritania|Nouakchott,18.08,-15.98",
+"Mauritius|Port Louis,-20.16,57.50",
+"Mexico|Mexico City,19.43,-99.13|Monterrey,25.69,-100.32|Tijuana,32.51,-117.04|Merida,20.97,-89.62|Tapachula,14.90,-92.26",
+"Micronesia|Palikir,6.92,158.16",
+"Moldova|Chisinau,47.01,28.86",
+"Monaco|Monaco,43.73,7.42",
+"Mongolia|Ulaanbaatar,47.89,106.91",
+"Montenegro|Podgorica,42.44,19.26",
+"Morocco|Rabat,34.02,-6.83|Marrakesh,31.63,-8.01",
+"Mozambique|Maputo,-25.97,32.57|Pemba,-12.97,40.52",
+"Myanmar|Naypyidaw,19.75,96.10|Yangon,16.87,96.20",
+"Namibia|Windhoek,-22.56,17.08",
+"Nauru|Yaren,-0.55,166.92",
+"Nepal|Kathmandu,27.72,85.32",
+"Netherlands|Amsterdam,52.37,4.90|Willemstad (Curacao),12.11,-68.93",
+"New Zealand|Wellington,-41.29,174.78|Auckland,-36.85,174.76|Christchurch,-43.53,172.64|Invercargill,-46.41,168.35",
+"Nicaragua|Managua,12.11,-86.24",
+"Niger|Niamey,13.51,2.13",
+"Nigeria|Abuja,9.06,7.49|Lagos,6.52,3.38|Kano,12.00,8.52",
+"North Korea|Pyongyang,39.04,125.76",
+"North Macedonia|Skopje,42.00,21.43",
+"Norway|Oslo,59.91,10.75|Bergen,60.39,5.32|Tromso,69.65,18.96|Longyearbyen (Svalbard),78.22,15.65",
+"Oman|Muscat,23.59,58.41",
+"Pakistan|Islamabad,33.68,73.05|Karachi,24.86,67.01|Lahore,31.55,74.34",
+"Palau|Ngerulmud,7.50,134.62",
+"Palestine|Ramallah,31.90,35.20|Gaza,31.50,34.47",
+"Panama|Panama City,8.98,-79.52",
+"Papua New Guinea|Port Moresby,-9.44,147.18",
+"Paraguay|Asuncion,-25.26,-57.58",
+"Peru|Lima,-12.05,-77.04|Cusco,-13.53,-71.97|Iquitos,-3.75,-73.25",
+"Philippines|Manila,14.60,120.98|Davao,7.07,125.61",
+"Poland|Warsaw,52.23,21.01|Krakow,50.06,19.94",
+"Portugal|Lisbon,38.72,-9.14|Porto,41.15,-8.61|Ponta Delgada (Azores),37.74,-25.67",
+"Qatar|Doha,25.29,51.53",
+"Romania|Bucharest,44.43,26.10",
+"Russia|Moscow,55.76,37.62|Saint Petersburg,59.94,30.31|Novosibirsk,55.03,82.92|Yekaterinburg,56.84,60.65|Vladivostok,43.12,131.89|Murmansk,68.97,33.08|Yakutsk,62.03,129.68|Sochi,43.60,39.73",
+"Rwanda|Kigali,-1.94,30.06",
+"Saint Kitts and Nevis|Basseterre,17.30,-62.72",
+"Saint Lucia|Castries,14.01,-60.99",
+"Saint Vincent and the Grenadines|Kingstown,13.16,-61.22",
+"Samoa|Apia,-13.83,-171.77",
+"San Marino|San Marino,43.94,12.45",
+"Sao Tome and Principe|Sao Tome,0.34,6.73",
+"Saudi Arabia|Riyadh,24.71,46.68|Jeddah,21.49,39.19|Tabuk,28.38,36.57",
+"Senegal|Dakar,14.72,-17.47",
+"Serbia|Belgrade,44.79,20.45",
+"Seychelles|Victoria,-4.62,55.45",
+"Sierra Leone|Freetown,8.48,-13.23",
+"Singapore|Singapore,1.35,103.82",
+"Slovakia|Bratislava,48.15,17.11",
+"Slovenia|Ljubljana,46.06,14.51",
+"Solomon Islands|Honiara,-9.43,159.96",
+"Somalia|Mogadishu,2.05,45.32",
+"South Africa|Pretoria,-25.75,28.19|Cape Town,-33.92,18.42|Johannesburg,-26.20,28.05|Durban,-29.86,31.02",
+"South Korea|Seoul,37.57,126.98|Busan,35.18,129.08|Jeju,33.50,126.53",
+"South Sudan|Juba,4.85,31.58",
+"Spain|Madrid,40.42,-3.70|Barcelona,41.39,2.17|Las Palmas (Canarias),28.12,-15.44",
+"Sri Lanka|Colombo,6.93,79.86",
+"Sudan|Khartoum,15.50,32.56",
+"Suriname|Paramaribo,5.85,-55.20",
+"Sweden|Stockholm,59.33,18.07|Gothenburg,57.71,11.97|Kiruna,67.86,20.23",
+"Switzerland|Bern,46.95,7.45|Zurich,47.38,8.54",
+"Syria|Damascus,33.51,36.29",
+"Taiwan|Taipei,25.03,121.57|Kaohsiung,22.63,120.30",
+"Tajikistan|Dushanbe,38.56,68.79",
+"Tanzania|Dodoma,-6.16,35.75|Dar es Salaam,-6.79,39.21",
+"Thailand|Bangkok,13.76,100.50|Chiang Mai,18.79,98.99",
+"Timor-Leste|Dili,-8.56,125.56",
+"Togo|Lome,6.13,1.22",
+"Tonga|Nukualofa,-21.14,-175.20",
+"Trinidad and Tobago|Port of Spain,10.65,-61.52",
+"Tunisia|Tunis,36.81,10.18",
+"Turkiye|Ankara,39.93,32.86|Istanbul,41.01,28.98|Antalya,36.90,30.70",
+"Turkmenistan|Ashgabat,37.95,58.38",
+"Tuvalu|Funafuti,-8.52,179.20",
+"Uganda|Kampala,0.35,32.58",
+"Ukraine|Kyiv,50.45,30.52|Odesa,46.48,30.73",
+"United Arab Emirates|Abu Dhabi,24.45,54.38|Dubai,25.20,55.27",
+"United Kingdom|London,51.51,-0.13|Edinburgh,55.95,-3.19|Belfast,54.60,-5.93|Cardiff,51.48,-3.18|Lerwick (Shetland),60.15,-1.15",
+"United States|Washington DC,38.91,-77.04|New York,40.71,-74.01|Chicago,41.88,-87.63|Los Angeles,34.05,-118.24|Miami,25.76,-80.19|Denver,39.74,-104.98|Seattle,47.61,-122.33|Houston,29.76,-95.37|Phoenix,33.45,-112.07|Anchorage,61.22,-149.90|Fairbanks,64.84,-147.72|Utqiagvik (Barrow),71.29,-156.79|Honolulu,21.31,-157.86|San Juan (Puerto Rico),18.47,-66.11",
+"Uruguay|Montevideo,-34.90,-56.16",
+"Uzbekistan|Tashkent,41.30,69.24",
+"Vanuatu|Port Vila,-17.73,168.32",
+"Vatican City|Vatican City,41.90,12.45",
+"Venezuela|Caracas,10.49,-66.88",
+"Vietnam|Hanoi,21.03,105.85|Ho Chi Minh City,10.82,106.63",
+"Yemen|Sanaa,15.37,44.19",
+"Zambia|Lusaka,-15.39,28.32",
+"Zimbabwe|Harare,-17.83,31.05"
+];
+</script>
+<script>
+/* =====================================================================
+   Orbit view — Sun, Earth's real elliptical orbit, and a tilted Earth
+   whose axis stays fixed in space while it goes round.
+
+   Frames
+   ------
+   Ecliptic frame: x toward the March equinox, z toward ecliptic north.
+   Scene frame (three.js, y up): scene = (ecl.x, ecl.z, -ecl.y).
+   That mapping is right-handed, so cross products keep their meaning.
+
+   Earth's north pole points at ecliptic latitude 90-eps, longitude 90,
+   i.e. ecl (0, sin eps, cos eps) -> scene (0, cos eps, -sin eps).
+   A point at (lat, lon) then lies along
+        cos(lat) * [ cos(GMST+lon)*e1 + sin(GMST+lon)*e2 ] + sin(lat)*axis
+   with e1 the March-equinox direction and e2 = axis x e1.  No fudge
+   factors: the sub-solar marker lands where the terminator says it should.
+
+   Sphere UVs in three.js put u=0.5 at +X and v=1 at the north pole, so an
+   equirectangular map lines up with
+        local(lat,lon) = (cos lat cos lon, sin lat, -cos lat sin lon)
+   which is what surfaceDir() reproduces in world space.
+   ===================================================================== */
+(function(){
+'use strict';
+
+const A = window.Astro;
+const D2R = A.D2R;
+
+/* Scale.  The orbit's SHAPE is exact (e = 0.0167, Sun at a focus) but the
+   bodies are wildly enlarged or nothing would be visible: at this scale a
+   true-size Earth would be 0.0043 units across.                         */
+const consts = { ORBIT_A: 100, EARTH_R: 7.6, SUN_R: 11.5, RAY_LEN: 23 };
+const { ORBIT_A, EARTH_R, SUN_R } = consts;
+
+const OV = window.__OV = {
+  consts: consts,
+  labels: [],
+  ZERO: new THREE.Vector3(0,0,0),
+  state: {
+    jd: 2451545,
+    city: { name:'', lat:51.51, lon:-0.13 },
+    show: { rings:true, axis:true, rays:true }
+  },
+  rig: {
+    target:   new THREE.Vector3(0,0,0),
+    targetTo: new THREE.Vector3(0,0,0),
+    r: 300, rTo: 300,
+    theta: 0.90, thetaTo: 0.90,
+    phi:   1.02, phiTo:   1.02
+  }
+};
+
+/* ------------------------------------------------------------ helpers */
+
+OV.eclToScene = function(x, y, z){ return new THREE.Vector3(x, z, -y); };
+
+OV.makeLabel = function(text, color){
+  const pad = 9, fs = 30, font = '600 ' + fs + 'px system-ui, Segoe UI, Roboto, sans-serif';
+  const probe = document.createElement('canvas').getContext('2d');
+  probe.font = font;
+  const c = document.createElement('canvas');
+  c.width = Math.ceil(probe.measureText(text).width) + pad*2;
+  c.height = fs + pad*2;
+  const g = c.getContext('2d');
+  g.font = font;
+  g.textBaseline = 'middle';
+  g.fillStyle = 'rgba(5,7,13,.60)';
+  g.fillRect(0, 0, c.width, c.height);
+  g.fillStyle = color || '#dce3f0';
+  g.fillText(text, pad, c.height/2 + 1);
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.minFilter = THREE.LinearFilter;
+  const spr = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: tex, transparent:true, depthTest:false, depthWrite:false
+  }));
+  spr.renderOrder = 20;
+  spr.userData.aspect = c.width / c.height;
+  OV.labels.push(spr);
+  return spr;
+};
+
+function radialSprite(size, inner, mid){
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const g = c.getContext('2d');
+  const grd = g.createRadialGradient(size/2, size/2, 0, size/2, size/2, size/2);
+  grd.addColorStop(0, inner);
+  grd.addColorStop(0.26, mid);
+  grd.addColorStop(1, 'rgba(255,170,60,0)');
+  g.fillStyle = grd;
+  g.fillRect(0, 0, size, size);
+  return new THREE.CanvasTexture(c);
+}
+
+/* A believable-looking planet for when the texture CDN is unreachable.
+   Clearly a stand-in rather than a map — the geometry is what teaches.  */
+OV.proceduralEarth = function(night){
+  const W = 1024, H = 512;
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const g = c.getContext('2d');
+
+  if (night){ g.fillStyle = '#04070f'; g.fillRect(0,0,W,H); }
+  else {
+    const sea = g.createLinearGradient(0,0,0,H);
+    sea.addColorStop(0,'#0d2947'); sea.addColorStop(.5,'#12518a'); sea.addColorStop(1,'#0d2947');
+    g.fillStyle = sea; g.fillRect(0,0,W,H);
+  }
+
+  const GX = 48, GY = 24, lat0 = [];
+  let s = 20260905;
+  const rnd = () => (s = (s * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+  for (let y = 0; y <= GY; y++){
+    lat0[y] = [];
+    for (let x = 0; x < GX; x++) lat0[y][x] = rnd();
+  }
+  const sm = t => t*t*(3-2*t);
+  function noise(u, v){
+    const fx = u*GX, fy = v*GY;
+    const x0 = Math.floor(fx) % GX, y0 = Math.min(GY-1, Math.floor(fy));
+    const tx = sm(fx - Math.floor(fx)), ty = sm(fy - Math.floor(fy));
+    const x1 = (x0+1) % GX, y1 = Math.min(GY, y0+1);
+    return (lat0[y0][x0]*(1-tx) + lat0[y0][x1]*tx)*(1-ty)
+         + (lat0[y1][x0]*(1-tx) + lat0[y1][x1]*tx)*ty;
+  }
+
+  const img = g.getImageData(0,0,W,H), d = img.data;
+  for (let y = 0; y < H; y++){
+    const v = y / H, lat = 90 - v*180;
+    for (let x = 0; x < W; x++){
+      const u = x / W;
+      const n = noise(u,v)*0.62 + noise(u*3,v*3)*0.26 + noise(u*7,v*7)*0.12;
+      const i = (y*W + x)*4;
+      const land = n > 0.52 && Math.abs(lat) < 84;
+      const ice  = Math.abs(lat) > 71 || (land && Math.abs(lat) > 62);
+      if (night){
+        if (land && n > 0.60 && rnd() > 0.9945){ d[i]=255; d[i+1]=214; d[i+2]=150; d[i+3]=255; }
+      } else if (ice){
+        d[i]=232; d[i+1]=240; d[i+2]=248; d[i+3]=255;
+      } else if (land){
+        const dry = Math.abs(Math.abs(lat) - 24) < 11;
+        d[i]   = dry ? 178 : 58 + n*40;
+        d[i+1] = dry ? 152 : 96 + n*70;
+        d[i+2] = dry ? 96  : 52 + n*26;
+        d[i+3] = 255;
+      }
+    }
+  }
+  g.putImageData(img, 0, 0);
+  return new THREE.CanvasTexture(c);
+};
+
+/* ------------------------------------------------------------ shaders */
+
+const EARTH_VERT = [
+  'varying vec2 vUv;',
+  'varying vec3 vNW;',
+  'varying vec3 vVW;',
+  'void main(){',
+  '  vUv = uv;',
+  '  vNW = normalize(mat3(modelMatrix) * normal);',
+  '  vec4 wp = modelMatrix * vec4(position, 1.0);',
+  '  vVW = normalize(cameraPosition - wp.xyz);',
+  '  gl_Position = projectionMatrix * viewMatrix * wp;',
+  '}'
+].join('\n');
+
+const EARTH_FRAG = [
+  'uniform sampler2D dayMap;',
+  'uniform sampler2D nightMap;',
+  'uniform vec3 sunDir;',
+  'varying vec2 vUv;',
+  'varying vec3 vNW;',
+  'varying vec3 vVW;',
+  'void main(){',
+  '  vec3 N = normalize(vNW);',
+  '  float d = dot(N, normalize(sunDir));',
+  // soft terminator: the Sun is not a point, and twilight is real
+  '  float lit = smoothstep(-0.09, 0.11, d);',
+  '  vec3 day   = texture2D(dayMap, vUv).rgb;',
+  '  vec3 night = texture2D(nightMap, vUv).rgb;',
+  '  vec3 dayLit = day * (0.16 + 0.94 * clamp(d, 0.0, 1.0));',
+  '  vec3 col = mix(night * 1.35 + day * 0.035, dayLit, lit);',
+  // thin cool rim so the globe reads against black
+  '  float rim = pow(1.0 - max(dot(N, normalize(vVW)), 0.0), 3.2);',
+  '  col += vec3(0.16, 0.36, 0.62) * rim * (0.22 + 0.78 * lit);',
+  '  gl_FragColor = vec4(col, 1.0);',
+  '}'
+].join('\n');
+
+/* --------------------------------------------------------------- build */
+
+OV.build = function(canvas){
+  OV.canvas = canvas;
+  OV.renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: false });
+  OV.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+
+  const scene = OV.scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x03050a);
+  OV.camera = new THREE.PerspectiveCamera(42, 1, 0.4, 6000);
+
+  /* stars */
+  const sc = 2400, N = 1800;
+  const pos = new Float32Array(N*3), col = new Float32Array(N*3);
+  for (let i = 0; i < N; i++){
+    const u = Math.random()*2-1, th = Math.random()*Math.PI*2, rr = Math.sqrt(1-u*u);
+    pos[i*3] = Math.cos(th)*rr*sc; pos[i*3+1] = u*sc; pos[i*3+2] = Math.sin(th)*rr*sc;
+    const b = 0.32 + Math.random()*0.68;
+    col[i*3] = b; col[i*3+1] = b*(0.93+Math.random()*0.07); col[i*3+2] = b*(0.95+Math.random()*0.05);
+  }
+  const sg = new THREE.BufferGeometry();
+  sg.setAttribute('position', new THREE.BufferAttribute(pos,3));
+  sg.setAttribute('color', new THREE.BufferAttribute(col,3));
+  scene.add(new THREE.Points(sg, new THREE.PointsMaterial({
+    size:2.1, vertexColors:true, sizeAttenuation:false })));
+
+  /* sun */
+  scene.add(new THREE.Mesh(
+    new THREE.SphereGeometry(SUN_R, 48, 32),
+    new THREE.MeshBasicMaterial({ color: 0xffd07a })
+  ));
+  const glow = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: radialSprite(256, 'rgba(255,228,175,.95)', 'rgba(255,168,54,.40)'),
+    transparent:true, depthWrite:false, blending: THREE.AdditiveBlending
+  }));
+  glow.scale.set(SUN_R*5.4, SUN_R*5.4, 1);
+  scene.add(glow);
+
+  OV.sunLabel = OV.makeLabel('Sun', '#ffcf8a');
+  OV.sunLabel.position.set(0, SUN_R*1.95, 0);
+  scene.add(OV.sunLabel);
+
+  /* orbit path, filled in by rebuildOrbit */
+  OV.orbitLine = new THREE.Line(
+    new THREE.BufferGeometry(),
+    new THREE.LineBasicMaterial({ color: 0x3f5d7a, transparent:true, opacity:0.9 })
+  );
+  scene.add(OV.orbitLine);
+
+  OV.markerGroup = new THREE.Group();
+  scene.add(OV.markerGroup);
+
+  OV.sunLine = new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]),
+    new THREE.LineBasicMaterial({ color: 0xffb445, transparent:true, opacity:0.30 })
+  );
+  scene.add(OV.sunLine);
+
+  /* earth */
+  OV.earthGroup = new THREE.Group();
+  scene.add(OV.earthGroup);
+
+  OV.earthMat = new THREE.ShaderMaterial({
+    uniforms: {
+      dayMap:   { value: null },
+      nightMap: { value: null },
+      sunDir:   { value: new THREE.Vector3(1,0,0) }
+    },
+    vertexShader: EARTH_VERT,
+    fragmentShader: EARTH_FRAG
+  });
+  OV.earthMesh = new THREE.Mesh(new THREE.SphereGeometry(EARTH_R, 96, 64), OV.earthMat);
+  OV.earthGroup.add(OV.earthMesh);
+
+  /* rotation axis, extended past the poles */
+  OV.axisLine = new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(0, -EARTH_R*1.9, 0), new THREE.Vector3(0, EARTH_R*1.9, 0)
+    ]),
+    new THREE.LineBasicMaterial({ color: 0xff8f5b })
+  );
+  OV.earthMesh.add(OV.axisLine);
+
+  /* latitude circles */
+  OV.ringGroup = new THREE.Group();
+  OV.earthMesh.add(OV.ringGroup);
+  const RINGS = [[0, 0x6fd08c], [A.TROPIC, 0xc79bff], [-A.TROPIC, 0xc79bff],
+                 [A.POLAR, 0x7fb8ff], [-A.POLAR, 0x7fb8ff]];
+  for (let i = 0; i < RINGS.length; i++){
+    const lat = RINGS[i][0];
+    const pts = [];
+    const rr = Math.cos(lat*D2R) * EARTH_R * 1.003, yy = Math.sin(lat*D2R) * EARTH_R * 1.003;
+    for (let j = 0; j <= 128; j++){
+      const t = j/128*Math.PI*2;
+      pts.push(new THREE.Vector3(Math.cos(t)*rr, yy, Math.sin(t)*rr));
+    }
+    OV.ringGroup.add(new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints(pts),
+      new THREE.LineBasicMaterial({ color: RINGS[i][1], transparent:true, opacity:0.72 })
+    ));
+  }
+
+  /* city pin */
+  OV.cityGroup = new THREE.Group();
+  const pin = new THREE.Mesh(
+    new THREE.SphereGeometry(EARTH_R*0.05, 16, 12),
+    new THREE.MeshBasicMaterial({ color: 0x5bc8ff })
+  );
+  const stick = new THREE.Mesh(
+    new THREE.CylinderGeometry(EARTH_R*0.011, EARTH_R*0.011, EARTH_R*0.26, 8),
+    new THREE.MeshBasicMaterial({ color: 0x5bc8ff, transparent:true, opacity:0.85 })
+  );
+  stick.position.y = -EARTH_R*0.13;
+  pin.add(stick);
+  OV.cityGroup.add(pin);
+  OV.cityGroup.userData.pin = pin;
+  OV.earthGroup.add(OV.cityGroup);
+
+  OV.cityLabel = OV.makeLabel('', '#bfe6ff');
+  OV.earthGroup.add(OV.cityLabel);
+
+  /* sub-solar marker */
+  OV.subGroup = new THREE.Group();
+  const subRing = new THREE.Mesh(
+    new THREE.RingGeometry(EARTH_R*0.055, EARTH_R*0.085, 28),
+    new THREE.MeshBasicMaterial({ color: 0xff5f5f, side: THREE.DoubleSide,
+                                  transparent:true, opacity:0.95, depthTest:false })
+  );
+  const subDot = new THREE.Mesh(
+    new THREE.SphereGeometry(EARTH_R*0.028, 12, 8),
+    new THREE.MeshBasicMaterial({ color: 0xff5f5f, depthTest:false })
+  );
+  subRing.renderOrder = 6; subDot.renderOrder = 6;
+  OV.subGroup.add(subRing); OV.subGroup.add(subDot);
+  OV.subGroup.userData.ring = subRing;
+  OV.earthGroup.add(OV.subGroup);
+
+  /* parallel sunlight */
+  OV.rayGroup = new THREE.Group();
+  scene.add(OV.rayGroup);
+  const rayMat = new THREE.LineBasicMaterial({ color: 0xffcf8a, transparent:true, opacity:0.40 });
+  for (let i = 0; i < 44; i++){
+    OV.rayGroup.add(new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]),
+      rayMat
+    ));
+  }
+};
+})();
+</script>
+<script>
+(function(){
+'use strict';
+const A = window.Astro;
+const D2R = A.D2R;
+const OV = window.__OV;                    // internals handed over from part 1
+
+const { ORBIT_A, EARTH_R, SUN_R, RAY_LEN } = OV.consts;
+
+/* --------------------------------------------------- orbit path + markers */
+
+/*  Traced from the true-anomaly form of the ellipse, so the drawn path IS
+    the orbit: eccentricity 0.0167, Sun at a focus.  It looks almost
+    circular because it almost is — which is exactly the point when people
+    assume seasons come from distance.                                     */
+function rebuildOrbit(jd){
+  const s = A.sunPosition(jd);
+  const periEarth = A.norm360(s.lam - s.nu + 180);   // Earth's perihelion longitude
+  const e = s.e, a = 1.000001018;
+  const p = a * (1 - e*e);
+
+  const pts = [];
+  for (let i = 0; i <= 720; i++){
+    const nu = i / 720 * 360;
+    const r = p / (1 + e * Math.cos(nu * D2R));
+    const L = (periEarth + nu) * D2R;
+    pts.push(OV.eclToScene(r*Math.cos(L), r*Math.sin(L), 0).multiplyScalar(ORBIT_A));
+  }
+  OV.orbitLine.geometry.dispose();
+  OV.orbitLine.geometry = new THREE.BufferGeometry().setFromPoints(pts);
+
+  // where Earth sits at each of the four turning points
+  while (OV.markerGroup.children.length) OV.markerGroup.remove(OV.markerGroup.children[0]);
+  const MARKS = [
+    { lamSun:0,   text:'March equinox',     color:'#6fd08c' },
+    { lamSun:90,  text:'June solstice',     color:'#ffb445' },
+    { lamSun:180, text:'September equinox', color:'#6fd08c' },
+    { lamSun:270, text:'December solstice', color:'#7fb8ff' }
+  ];
+  for (const m of MARKS){
+    const nu = A.norm360(m.lamSun + 180 - periEarth);
+    const r = p / (1 + e * Math.cos(nu * D2R));
+    const L = (periEarth + nu) * D2R;
+    const P = OV.eclToScene(r*Math.cos(L), r*Math.sin(L), 0).multiplyScalar(ORBIT_A);
+
+    const dot = new THREE.Mesh(
+      new THREE.SphereGeometry(1.5, 12, 8),
+      new THREE.MeshBasicMaterial({ color: new THREE.Color(m.color) })
+    );
+    dot.position.copy(P);
+    OV.markerGroup.add(dot);
+
+    const lb = OV.makeLabel(m.text, m.color);
+    lb.position.copy(P).multiplyScalar(1.13);
+    lb.position.y += 9;
+    OV.markerGroup.add(lb);
+  }
+
+  /*  Perihelion and aphelion sit only ~13 days from the solstices, so the
+      labels are pushed apart along the one axis the solstice labels do not
+      use — perpendicular to the orbit plane — which also keeps them legible
+      in the edge-on view, where everything else collapses onto a line.   */
+  for (const [nu0, txt, col, dy] of [[0,   'Perihelion — closest', '#ff9f6b', -19],
+                                     [180, 'Aphelion — farthest',  '#8fb6d8',  19]]){
+    const r = p / (1 + e * Math.cos(nu0 * D2R));
+    const L = (periEarth + nu0) * D2R;
+    const P = OV.eclToScene(r*Math.cos(L), r*Math.sin(L), 0).multiplyScalar(ORBIT_A);
+    const lb = OV.makeLabel(txt, col);
+    lb.position.copy(P).multiplyScalar(0.88);
+    lb.position.y += dy;
+    OV.markerGroup.add(lb);
+
+    const tick = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints([
+        P.clone(), P.clone().multiplyScalar(0.88).setY(dy * 0.75)
+      ]),
+      new THREE.LineBasicMaterial({ color: new THREE.Color(col), transparent:true, opacity:0.35 })
+    );
+    OV.markerGroup.add(tick);
+  }
+}
+
+/* ------------------------------------------------------------- per-frame */
+
+const _e1 = new THREE.Vector3(1, 0, 0);
+const _e2 = new THREE.Vector3();
+const _axis = new THREE.Vector3();
+const _cx = new THREE.Vector3(), _cy = new THREE.Vector3(), _cz = new THREE.Vector3();
+const _m = new THREE.Matrix4();
+const _tmp = new THREE.Vector3();
+
+/*  Unit vector, in world space, of the surface point at (lat, lon). */
+function surfaceDir(latDeg, lonDeg, gmstDeg, out){
+  const ang = (gmstDeg + lonDeg) * D2R, la = latDeg * D2R;
+  out.set(0,0,0)
+     .addScaledVector(_e1, Math.cos(la) * Math.cos(ang))
+     .addScaledVector(_e2, Math.cos(la) * Math.sin(ang))
+     .addScaledVector(_axis, Math.sin(la));
+  return out;
+}
+
+function applyDate(jd){
+  const s   = A.sunPosition(jd);
+  const eps = s.eps * D2R;
+  const G   = A.gmstDeg(jd);
+
+  // Earth's position: heliocentric longitude is the Sun's plus 180
+  const L = (s.lam + 180) * D2R;
+  const pos = OV.eclToScene(s.r*Math.cos(L), s.r*Math.sin(L), 0).multiplyScalar(ORBIT_A);
+  OV.earthGroup.position.copy(pos);
+
+  // axis fixed in space; e2 completes a right-handed equatorial basis
+  _axis.set(0, Math.cos(eps), -Math.sin(eps)).normalize();
+  _e2.copy(_axis).cross(_e1).normalize();
+
+  const g = G * D2R, cg = Math.cos(g), sg = Math.sin(g);
+  _cx.set(0,0,0).addScaledVector(_e1, cg).addScaledVector(_e2, sg);
+  _cy.copy(_axis);
+  _cz.set(0,0,0).addScaledVector(_e1, sg).addScaledVector(_e2, -cg);
+  _m.makeBasis(_cx, _cy, _cz);
+  OV.earthMesh.quaternion.setFromRotationMatrix(_m);
+
+  // direction Earth -> Sun
+  const sunDir = _tmp.copy(pos).multiplyScalar(-1).normalize();
+  OV.earthMat.uniforms.sunDir.value.copy(sunDir);
+
+  // city pin
+  const cd = surfaceDir(OV.state.city.lat, OV.state.city.lon, G, new THREE.Vector3());
+  OV.cityGroup.userData.pin.position.copy(cd).multiplyScalar(EARTH_R * 1.02);
+  OV.cityGroup.userData.pin.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), cd);
+
+  // sub-solar point
+  const sub = A.subsolarPoint(jd);
+  const sd = surfaceDir(sub.lat, sub.lon, G, new THREE.Vector3());
+  OV.subGroup.position.copy(sd).multiplyScalar(EARTH_R * 1.006);
+  OV.subGroup.userData.ring.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1), sd);
+
+  // Sun-Earth line
+  const lp = OV.sunLine.geometry.attributes.position;
+  lp.setXYZ(0, 0, 0, 0);
+  lp.setXYZ(1, pos.x, pos.y, pos.z);
+  lp.needsUpdate = true;
+
+  /*  Parallel sunlight: segments along the Sun->Earth direction, each one
+      stopping exactly where it meets the globe.  Parallel rays striking a
+      tilted sphere is the whole mechanism in one picture.               */
+  const dir = _tmp.copy(pos).normalize();          // Sun -> Earth
+  const up  = Math.abs(dir.y) > 0.9 ? new THREE.Vector3(1,0,0) : new THREE.Vector3(0,1,0);
+  const ux  = new THREE.Vector3().crossVectors(up, dir).normalize();
+  const uy  = new THREE.Vector3().crossVectors(dir, ux).normalize();
+
+  const kids = OV.rayGroup.children;
+  let k = 0;
+  // kept short and sparse: these should read as parallel light arriving,
+  // not as a searchlight beam aimed at the planet
+  const RINGS = [[0,1],[0.46,6],[0.80,10]];
+  for (const [frac, count] of RINGS){
+    for (let i = 0; i < count && k < kids.length; i++, k++){
+      const ang = (i / count) * Math.PI * 2 + frac * 1.7;
+      const rr = frac * EARTH_R * 0.99;
+      const off = new THREE.Vector3()
+        .addScaledVector(ux, Math.cos(ang) * rr)
+        .addScaledVector(uy, Math.sin(ang) * rr);
+      const back = Math.sqrt(Math.max(0, EARTH_R*EARTH_R - rr*rr));
+      const end = new THREE.Vector3().copy(pos).add(off).addScaledVector(dir, -back);
+      const st  = new THREE.Vector3().copy(end).addScaledVector(dir, -RAY_LEN);
+      const p = kids[k].geometry.attributes.position;
+      p.setXYZ(0, st.x, st.y, st.z);
+      p.setXYZ(1, end.x, end.y, end.z);
+      p.needsUpdate = true;
+      kids[k].visible = true;
+    }
+  }
+  for (; k < kids.length; k++) kids[k].visible = false;
+
+  return { sun:s, pos:pos, gmst:G, sub:sub };
+}
+
+/* ----------------------------------------------------------- camera rig */
+
+const CAMS = {
+  side:  { r: 300, phi: 1.50, theta: 0.55, follow:false },   // near the orbit plane
+  top:   { r: 330, phi: 0.10, theta: 0.00, follow:false },   // straight down
+  three: { r: 300, phi: 1.02, theta: 0.90, follow:false },
+  earth: { r: 30,  phi: 1.15, theta: 0.70, follow:true, sunLock:true }
+};
+let camMode = 'three';
+
+/*  At globe zoom the camera is held relative to the SUN, not to fixed
+    space.  Otherwise scrubbing through the year swings the viewer round
+    to the night side and the terminator — the thing worth looking at —
+    disappears.  Dragging changes the offset from the Sun rather than an
+    absolute bearing, so the user keeps full control.                   */
+let sunOffset = 0.62;
+
+function sunTheta(){
+  const p = OV.earthGroup.position;
+  return Math.atan2(-p.x, -p.z);          // bearing of Earth -> Sun
+}
+
+function setCamera(mode){
+  const c = CAMS[mode]; if (!c) return;
+  camMode = mode;
+  OV.rig.rTo = c.r; OV.rig.phiTo = c.phi;
+  if (c.sunLock){ sunOffset = 0.62; OV.rig.thetaTo = sunTheta() + sunOffset; }
+  else OV.rig.thetaTo = c.theta;
+}
+
+function updateRig(dt){
+  const rg = OV.rig, k = 1 - Math.pow(0.0016, dt);
+  const cam = CAMS[camMode] || CAMS.three;
+  rg.targetTo.copy(cam.follow ? OV.earthGroup.position : OV.ZERO);
+  rg.target.lerp(rg.targetTo, k);
+
+  if (cam.sunLock){
+    // keep the shortest path as the Sun bearing wraps through +/-pi
+    const want = sunTheta() + sunOffset;
+    rg.thetaTo = rg.theta + Math.atan2(Math.sin(want - rg.theta),
+                                       Math.cos(want - rg.theta));
+  }
+
+  rg.r     += (rg.rTo - rg.r) * k;
+  rg.theta += (rg.thetaTo - rg.theta) * k;
+  rg.phi   += (rg.phiTo - rg.phi) * k;
+
+  const sp = Math.sin(rg.phi);
+  OV.camera.position.set(
+    rg.target.x + rg.r * sp * Math.sin(rg.theta),
+    rg.target.y + rg.r * Math.cos(rg.phi),
+    rg.target.z + rg.r * sp * Math.cos(rg.theta)
+  );
+  OV.camera.lookAt(rg.target);
+}
+
+/* ------------------------------------------------------- mouse / touch */
+
+function attachControls(canvas){
+  const rg = OV.rig;
+  let dragging = false, panning = false, lx = 0, ly = 0;
+
+  const down = ev => {
+    dragging = true;
+    panning = (ev.button === 2 || ev.shiftKey);
+    lx = ev.clientX; ly = ev.clientY;
+    canvas.setPointerCapture(ev.pointerId);
+  };
+  const move = ev => {
+    if (!dragging) return;
+    const dx = ev.clientX - lx, dy = ev.clientY - ly;
+    lx = ev.clientX; ly = ev.clientY;
+    if (panning){
+      const s = rg.r * 0.0022;
+      const right = new THREE.Vector3().setFromMatrixColumn(OV.camera.matrix, 0);
+      const up    = new THREE.Vector3().setFromMatrixColumn(OV.camera.matrix, 1);
+      rg.targetTo.addScaledVector(right, -dx*s).addScaledVector(up, dy*s);
+      rg.target.copy(rg.targetTo);
+      camMode = 'free';
+      CAMS.free = { r: rg.rTo, phi: rg.phiTo, theta: rg.thetaTo, follow:false };
+    } else {
+      const cam = CAMS[camMode] || CAMS.three;
+      if (cam.sunLock) sunOffset -= dx * 0.0055;   // spin relative to the Sun
+      else rg.thetaTo -= dx * 0.0055;
+      rg.phiTo = Math.max(0.045, Math.min(Math.PI - 0.045, rg.phiTo - dy * 0.0055));
+    }
+  };
+  const up = ev => {
+    dragging = false;
+    try { canvas.releasePointerCapture(ev.pointerId); } catch(e){}
+  };
+
+  canvas.addEventListener('pointerdown', down);
+  canvas.addEventListener('pointermove', move);
+  canvas.addEventListener('pointerup', up);
+  canvas.addEventListener('pointercancel', up);
+  canvas.addEventListener('contextmenu', e => e.preventDefault());
+  canvas.addEventListener('wheel', ev => {
+    ev.preventDefault();
+    rg.rTo = Math.max(EARTH_R*1.9, Math.min(1400, rg.rTo * Math.pow(1.0016, ev.deltaY)));
+  }, { passive:false });
+
+  // pinch to zoom
+  let pinch0 = null;
+  canvas.addEventListener('touchstart', ev => {
+    if (ev.touches.length === 2){
+      pinch0 = Math.hypot(ev.touches[0].clientX - ev.touches[1].clientX,
+                          ev.touches[0].clientY - ev.touches[1].clientY);
+    }
+  }, { passive:true });
+  canvas.addEventListener('touchmove', ev => {
+    if (ev.touches.length === 2 && pinch0){
+      const d = Math.hypot(ev.touches[0].clientX - ev.touches[1].clientX,
+                           ev.touches[0].clientY - ev.touches[1].clientY);
+      rg.rTo = Math.max(EARTH_R*1.9, Math.min(1400, rg.rTo * (pinch0 / Math.max(1,d))));
+      pinch0 = d;
+    }
+  }, { passive:true });
+  canvas.addEventListener('touchend', () => { pinch0 = null; }, { passive:true });
+}
+
+window.__OV2 = { rebuildOrbit, applyDate, setCamera, updateRig, attachControls,
+                 getCamMode: () => camMode };
+})();
+</script>
+<script>
+(function(){
+'use strict';
+const OV  = window.__OV;
+const OV2 = window.__OV2;
+const D2R = window.Astro.D2R;
+
+const TEX_BASE = 'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r160/examples/textures/planets/';
+const TEX_DAY   = TEX_BASE + 'earth_atmos_2048.jpg';
+const TEX_NIGHT = TEX_BASE + 'earth_lights_2048.png';
+const TEX_TIMEOUT = 12000;
+
+let running = false, lastT = 0, dirty = true;
+let onFrame = null;                       // app callback, gets the frame's astro data
+
+/*  Load both maps, but never let a slow or blocked CDN stop the sim:
+    after TEX_TIMEOUT (or on any error) we fall back to a generated globe
+    and carry on.  The geometry lesson does not depend on the imagery.  */
+function loadTextures(){
+  return new Promise(resolve => {
+    let settled = false;
+    const finish = ok => { if (!settled){ settled = true; resolve(ok); } };
+    const timer = setTimeout(() => finish(false), TEX_TIMEOUT);
+
+    const loader = new THREE.TextureLoader();
+    loader.setCrossOrigin('anonymous');
+    let day = null, night = null, failed = false;
+
+    const check = () => {
+      if (failed){ clearTimeout(timer); finish(false); return; }
+      if (day && night){
+        clearTimeout(timer);
+        OV.earthMat.uniforms.dayMap.value = day;
+        OV.earthMat.uniforms.nightMap.value = night;
+        finish(true);
+      }
+    };
+    const fail = () => { failed = true; check(); };
+
+    loader.load(TEX_DAY,   t => { day = t;   check(); }, undefined, fail);
+    loader.load(TEX_NIGHT, t => { night = t; check(); }, undefined, fail);
+  });
+}
+
+function useFallbackTextures(){
+  OV.earthMat.uniforms.dayMap.value   = OV.proceduralEarth(false);
+  OV.earthMat.uniforms.nightMap.value = OV.proceduralEarth(true);
+}
+
+function resize(){
+  const c = OV.canvas;
+  const w = c.clientWidth || 1, h = c.clientHeight || 1;
+  if (c.width !== Math.floor(w * OV.renderer.getPixelRatio()) ||
+      c.height !== Math.floor(h * OV.renderer.getPixelRatio())){
+    OV.renderer.setSize(w, h, false);
+    OV.camera.aspect = w / h;
+    OV.camera.updateProjectionMatrix();
+  }
+}
+
+/*  Sprites keep a constant on-screen height, so labels stay legible from
+    a whole-orbit view and from two Earth-radii away alike.              */
+const TARGET_PX = 17;
+function scaleLabels(){
+  const h = OV.canvas.clientHeight || 1;
+  const k = 2 * Math.tan(OV.camera.fov / 2 * D2R) * TARGET_PX / h;
+  const cam = OV.camera.position;
+  for (const s of OV.labels){
+    const d = s.getWorldPosition(_v).distanceTo(cam);
+    const sz = d * k;
+    s.scale.set(sz * s.userData.aspect, sz, 1);
+  }
+}
+const _v = new THREE.Vector3();
+const _v2 = new THREE.Vector3();
+const _v3 = new THREE.Vector3();
+
+function frame(t){
+  if (!running) return;
+  requestAnimationFrame(frame);
+  const dt = Math.min(0.1, (t - lastT) / 1000 || 0.016);
+  lastT = t;
+
+  resize();
+  if (dirty){
+    const info = OV2.applyDate(OV.state.jd);
+    dirty = false;
+    if (onFrame) onFrame(info);
+  }
+  OV2.updateRig(dt);
+  scaleLabels();
+
+  /*  Sit the label just clear of the pin.  Anything much beyond ~1.15 R
+      leaves the canvas entirely once the camera is down at globe zoom.  */
+  const pin = OV.cityGroup.userData.pin;
+  OV.cityLabel.position.copy(pin.position).multiplyScalar(1.15);
+
+  /*  The sub-solar ring is drawn with depthTest off so it never gets
+      z-fought by the globe surface — which means it would otherwise show
+      through from the far side, putting the "Sun overhead" marker on the
+      night face.  Hide both markers past the visible horizon instead.
+      A point is over the horizon when  n . e > R / |E - C|.            */
+  const toCam = _v2.copy(OV.camera.position).sub(OV.earthGroup.position);
+  const dist = toCam.length();
+  toCam.divideScalar(dist || 1);
+  const cosHorizon = Math.min(0.999, OV.consts.EARTH_R / Math.max(dist, 0.001));
+  OV.subGroup.visible   = _v3.copy(OV.subGroup.position).normalize().dot(toCam) > cosHorizon;
+  OV.cityLabel.visible  = _v3.copy(pin.position).normalize().dot(toCam) > cosHorizon;
+
+  /*  Orbit-scale annotations are noise once the camera is at the globe —
+      and worse, their opaque backgrounds sit on top of the city label.  */
+  const wide = OV.rig.r > 90;
+  OV.markerGroup.visible = wide;
+  OV.sunLabel.visible = wide;
+  OV.orbitLine.visible = wide;      // the ellipse runs straight through the
+  OV.sunLine.visible = wide;        // globe at this zoom; it only adds clutter
+
+  OV.renderer.render(OV.scene, OV.camera);
+}
+
+window.OrbitView = {
+  async init(canvas, opts){
+    opts = opts || {};
+    onFrame = opts.onFrame || null;
+    OV.build(canvas);
+    OV2.attachControls(canvas);
+
+    // start on the fallback so the very first frame is never blank
+    useFallbackTextures();
+    OV2.rebuildOrbit(OV.state.jd);
+
+    running = true;
+    lastT = performance.now();
+    requestAnimationFrame(frame);
+
+    const ok = await loadTextures();
+    return { texturesOk: ok };
+  },
+
+  setDate(jd){
+    if (jd === OV.state.jd) return;
+    OV.state.jd = jd;
+    dirty = true;
+  },
+
+  setCity(city){
+    OV.state.city = city;
+    const lbl = OV.makeLabel(city.name, '#bfe6ff');
+    OV.earthGroup.remove(OV.cityLabel);
+    const i = OV.labels.indexOf(OV.cityLabel);
+    if (i >= 0) OV.labels.splice(i, 1);
+    if (OV.cityLabel.material.map) OV.cityLabel.material.map.dispose();
+    OV.cityLabel.material.dispose();
+    OV.cityLabel = lbl;
+    OV.earthGroup.add(lbl);
+    dirty = true;
+  },
+
+  setCamera(mode){ OV2.setCamera(mode); },
+
+  toggle(what, on){
+    OV.state.show[what] = on;
+    if (what === 'rings') OV.ringGroup.visible = on;
+    if (what === 'axis')  OV.axisLine.visible  = on;
+    if (what === 'rays')  OV.rayGroup.visible  = on;
+  },
+
+  rebuildOrbit(jd){ OV2.rebuildOrbit(jd); },
+
+  // exposed for the self-test
+  _internals: OV
+};
+})();
+</script>
+<script>
+/* =====================================================================
+   Sky dome — the Sun's path across the sky as seen from the chosen city.
+
+   Horizon frame used here: +x East, +y up, -z North.  Azimuth from
+   altAz() is measured from true North going East, so
+       x = cos(alt) * sin(az)
+       z = -cos(alt) * cos(az)
+       y = sin(alt)
+   Ghost arcs for the two solstices and the equinox are drawn behind the
+   current date's arc: the whole seasonal story is the gap between them.
+   ===================================================================== */
+(function(){
+'use strict';
+const A = window.Astro;
+const D2R = A.D2R;
+
+const R = 100;                            // dome radius
+let renderer, scene, camera, canvas;
+let arcCur, arcJun, arcDec, arcEq, sunBead, noonStick, riseDot, setDot;
+let labels = [];
+let running = false;
+let yaw = 0, yawTo = 0, pitch = 0.30, pitchTo = 0.30;
+
+function dir(alt, az, rad){
+  const a = alt * D2R, z = az * D2R;
+  return new THREE.Vector3(
+    Math.cos(a) * Math.sin(z) * rad,
+    Math.sin(a) * rad,
+    -Math.cos(a) * Math.cos(z) * rad
+  );
+}
+
+function label(text, color, px){
+  const fs = 30, pad = 6, font = '600 ' + fs + 'px system-ui, Segoe UI, Roboto, sans-serif';
+  const probe = document.createElement('canvas').getContext('2d');
+  probe.font = font;
+  const c = document.createElement('canvas');
+  c.width = Math.ceil(probe.measureText(text).width) + pad*2;
+  c.height = fs + pad*2;
+  const g = c.getContext('2d');
+  g.font = font; g.textBaseline = 'middle';
+  g.fillStyle = color;
+  g.fillText(text, pad, c.height/2 + 1);
+  const spr = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: new THREE.CanvasTexture(c), transparent:true, depthTest:false, depthWrite:false
+  }));
+  spr.userData.aspect = c.width / c.height;
+  spr.userData.px = px || 15;
+  labels.push(spr);
+  return spr;
+}
+
+function emptyLine(color, opacity, width){
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(3), 3));
+  return new THREE.Line(g, new THREE.LineBasicMaterial({
+    color: color, transparent:true, opacity: opacity, linewidth: width || 1
+  }));
+}
+
+/*  Sample the Sun's track for a given declination.  Returns the points
+    above (or just below) the horizon, plus the noon and rise/set data.  */
+function trackPoints(latDeg, decDeg, rad){
+  const pts = [];
+  for (let H = -180; H <= 180; H += 1.5){
+    const p = A.altAz(latDeg, decDeg, H);
+    if (p.alt >= -1.2) pts.push(dir(p.alt, p.az, rad));
+  }
+  return pts;
+}
+
+function setLine(line, pts){
+  if (!pts.length){
+    line.visible = false;
+    return;
+  }
+  line.visible = true;
+  const arr = new Float32Array(pts.length * 3);
+  for (let i = 0; i < pts.length; i++){
+    arr[i*3] = pts[i].x; arr[i*3+1] = pts[i].y; arr[i*3+2] = pts[i].z;
+  }
+  line.geometry.dispose();
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(arr, 3));
+  line.geometry = g;
+}
+
+function build(cv){
+  canvas = cv;
+  renderer = new THREE.WebGLRenderer({ canvas: cv, antialias:true });
+  renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x070b14);
+  camera = new THREE.PerspectiveCamera(38, 1, 0.5, 3000);
+
+  /* ground */
+  const ground = new THREE.Mesh(
+    new THREE.CircleGeometry(R, 96),
+    new THREE.MeshBasicMaterial({ color: 0x0d1526, transparent:true, opacity:0.95 })
+  );
+  ground.rotation.x = -Math.PI/2;
+  ground.position.y = -0.15;
+  scene.add(ground);
+
+  /* horizon ring */
+  const hp = [];
+  for (let i = 0; i <= 160; i++){
+    const t = i/160 * Math.PI*2;
+    hp.push(new THREE.Vector3(Math.cos(t)*R, 0, Math.sin(t)*R));
+  }
+  scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(hp),
+    new THREE.LineBasicMaterial({ color: 0x3d4c68 })));
+
+  /* altitude rings at 30 and 60 degrees, and the meridian */
+  for (const alt of [30, 60]){
+    const p = [];
+    for (let az = 0; az <= 360; az += 4) p.push(dir(alt, az, R));
+    scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(p),
+      new THREE.LineBasicMaterial({ color: 0x223049, transparent:true, opacity:0.85 })));
+  }
+  /*  Meridians every 45 degrees, all meeting at the zenith.  Without them
+      the altitude rings read as flat stacked ovals instead of a dome.  */
+  for (let az = 0; az < 360; az += 45){
+    const p = [];
+    for (let alt = 0; alt <= 90; alt += 3) p.push(dir(alt, az, R));
+    scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(p),
+      new THREE.LineBasicMaterial({
+        color: az % 90 === 0 ? 0x2b3a56 : 0x1d2942, transparent:true, opacity:0.9 })));
+  }
+
+  /* cardinal points */
+  const CARD = [['N',0],['E',90],['S',180],['W',270]];
+  for (const [t, az] of CARD){
+    const s = label(t, t === 'N' ? '#8fb6d8' : '#5c6c88', 16);
+    s.position.copy(dir(3, az, R*1.02));
+    scene.add(s);
+  }
+  for (const [t, alt] of [['30°',30],['60°',60]]){
+    const s = label(t, '#3d4c68', 12);
+    s.position.copy(dir(alt, 180, R*1.0));
+    scene.add(s);
+  }
+
+  /* arcs, drawn back to front */
+  arcJun = emptyLine(0xffd9a6, 0.42); scene.add(arcJun);
+  arcDec = emptyLine(0x7fb8ff, 0.42); scene.add(arcDec);
+  arcEq  = emptyLine(0x6fd08c, 0.40); scene.add(arcEq);
+  arcCur = emptyLine(0xffb445, 1.0);  scene.add(arcCur);
+
+  noonStick = emptyLine(0xffb445, 0.45); scene.add(noonStick);
+
+  sunBead = new THREE.Mesh(new THREE.SphereGeometry(3.4, 20, 14),
+    new THREE.MeshBasicMaterial({ color: 0xffd07a }));
+  scene.add(sunBead);
+
+  const dotMat = () => new THREE.MeshBasicMaterial({ color: 0xffb445, transparent:true, opacity:0.9 });
+  riseDot = new THREE.Mesh(new THREE.SphereGeometry(1.9, 14, 10), dotMat());
+  setDot  = new THREE.Mesh(new THREE.SphereGeometry(1.9, 14, 10), dotMat());
+  scene.add(riseDot); scene.add(setDot);
+
+  /* drag to look around */
+  let dragging = false, lx = 0, ly = 0;
+  cv.addEventListener('pointerdown', e => { dragging = true; lx = e.clientX; ly = e.clientY;
+    cv.setPointerCapture(e.pointerId); });
+  cv.addEventListener('pointermove', e => {
+    if (!dragging) return;
+    yawTo   -= (e.clientX - lx) * 0.006;
+    pitchTo = Math.max(0.05, Math.min(1.45, pitchTo + (e.clientY - ly) * 0.005));
+    lx = e.clientX; ly = e.clientY;
+  });
+  const up = e => { dragging = false; try { cv.releasePointerCapture(e.pointerId); } catch(err){} };
+  cv.addEventListener('pointerup', up);
+  cv.addEventListener('pointercancel', up);
+}
+
+/*  Update for a place and date.  Returns the numbers the panel shows. */
+function update(lat, lon, year, month, day){
+  const cur = A.dayCircumstances(year, month, day, lat, lon);
+  const dec = cur.sun.dec;
+
+  const ev = A.yearEvents(year);
+  const decJun = A.sunPosition(ev[1].jd).dec;
+  const decDec = A.sunPosition(ev[3].jd).dec;
+
+  setLine(arcCur, trackPoints(lat, dec, R));
+  setLine(arcJun, trackPoints(lat, decJun, R * 0.995));
+  setLine(arcDec, trackPoints(lat, decDec, R * 0.995));
+  setLine(arcEq,  trackPoints(lat, 0, R * 0.995));
+
+  const noon = A.altAz(lat, dec, 0);
+  const visible = noon.alt > -1.2;
+  sunBead.visible = visible;
+  noonStick.visible = visible;
+  if (visible){
+    const p = dir(noon.alt, noon.az, R);
+    sunBead.position.copy(p);
+    setLine(noonStick, [dir(0, noon.az, R), p]);
+  }
+
+  let riseAz = null, setAz = null;
+  if (cur.state === 'normal'){
+    riseAz = A.altAz(lat, dec, -cur.H0).az;
+    setAz  = A.altAz(lat, dec,  cur.H0).az;
+    riseDot.visible = setDot.visible = true;
+    riseDot.position.copy(dir(0, riseAz, R));
+    setDot.position.copy(dir(0, setAz, R));
+  } else {
+    riseDot.visible = setDot.visible = false;
+  }
+
+  /*  Extremes of the noon altitude over a year, in closed form.
+      Noon altitude is 90 - |lat - dec| and dec sweeps [-eps, +eps], so
+      inside the tropics the Sun reaches the zenith and outside them the
+      best it manages is 90 - (|lat| - eps).                            */
+  const eps = cur.sun.eps, absLat = Math.abs(lat);
+  const maxAlt = absLat <= eps ? 90 : 90 - (absLat - eps);
+  const minAlt = 90 - (absLat + eps);
+
+  return { cur:cur, riseAz:riseAz, setAz:setAz, noonAlt:noon.alt,
+           maxNoonAlt:maxAlt, minNoonAlt:minAlt };
+}
+
+function frame(){
+  if (!running) return;
+  requestAnimationFrame(frame);
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  if (!w || !h) return;
+
+  const pr = renderer.getPixelRatio();
+  if (canvas.width !== Math.floor(w*pr) || canvas.height !== Math.floor(h*pr)){
+    renderer.setSize(w, h, false);
+    camera.aspect = w/h;
+    camera.updateProjectionMatrix();
+  }
+
+  yaw += (yawTo - yaw) * 0.12;
+  pitch += (pitchTo - pitch) * 0.12;
+
+  /*  Pull back far enough that the dome fits the NARROWER of the two
+      field-of-view angles.  The panel is tall and thin, so fitting only
+      the vertical fov would push the horizon off both sides.          */
+  const vfov = camera.fov * D2R;
+  const hfov = 2 * Math.atan(Math.tan(vfov / 2) * camera.aspect);
+  const d = (R * 1.16) / Math.tan(Math.min(vfov, hfov) / 2);
+  camera.position.set(
+    Math.sin(yaw) * Math.cos(pitch) * d,
+    Math.sin(pitch) * d,
+    Math.cos(yaw) * Math.cos(pitch) * d
+  );
+  camera.lookAt(0, R * 0.16, 0);
+
+  const k = 2 * Math.tan(camera.fov/2 * D2R) / h;
+  for (const s of labels){
+    const dist = s.position.distanceTo(camera.position);
+    const sz = dist * k * s.userData.px;
+    s.scale.set(sz * s.userData.aspect, sz, 1);
+  }
+
+  renderer.render(scene, camera);
+}
+
+window.SkyView = {
+  init(cv){ build(cv); running = true; requestAnimationFrame(frame); },
+  update: update,
+  resetView(){ yawTo = 0; pitchTo = 0.30; }
+};
+})();
+</script>
+<script>
+/* =====================================================================
+   Year graphs — daylight length, noon Sun height, and Earth-Sun distance
+   across a whole year for the chosen city.  Plain 2D canvas.
+   ===================================================================== */
+(function(){
+'use strict';
+const A = window.Astro;
+
+const CSS = getComputedStyle(document.documentElement);
+const C = {
+  grid:  '#1b2436',
+  axis:  '#2a3650',
+  text:  '#7c8aa5',
+  dim:   '#4d5a72',
+  sun:   '#ffb445',
+  cool:  '#5bc8ff',
+  green: '#6fd08c'
+};
+const MONTH_LABEL = ['J','F','M','A','M','J','J','A','S','O','N','D'];
+
+function setup(cv){
+  const w = cv.clientWidth || 320;
+  const h = parseInt(cv.getAttribute('height'), 10) || 180;
+  const pr = Math.min(2, window.devicePixelRatio || 1);
+  if (cv.width !== Math.floor(w*pr) || cv.height !== Math.floor(h*pr)){
+    cv.width = Math.floor(w*pr);
+    cv.height = Math.floor(h*pr);
+    cv.style.height = h + 'px';
+  }
+  const g = cv.getContext('2d');
+  g.setTransform(pr, 0, 0, pr, 0, 0);
+  g.clearRect(0, 0, w, h);
+  return { g:g, w:w, h:h };
+}
+
+/*  opts: { title, unit, values[], today, events[], color, fill,
+            yMin, yMax, fmt, band }                                    */
+function drawChart(cv, opts){
+  const { g, w, h } = setup(cv);
+  const L = 40, Rp = 10, T = 20, B = 20;
+  const pw = w - L - Rp, ph = h - T - B;
+  const n = opts.values.length;
+
+  let lo = opts.yMin, hi = opts.yMax;
+  if (lo == null || hi == null){
+    lo = Math.min.apply(null, opts.values);
+    hi = Math.max.apply(null, opts.values);
+    const pad = (hi - lo) * 0.16 || 1;
+    lo -= pad; hi += pad;
+  }
+  const X = i => L + (i / (n - 1)) * pw;
+  const Y = v => T + ph - ((v - lo) / (hi - lo)) * ph;
+
+  g.font = '10px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
+  g.textBaseline = 'middle';
+
+  /* horizontal grid */
+  const ticks = opts.ticks || 4;
+  g.strokeStyle = C.grid; g.lineWidth = 1;
+  g.fillStyle = C.dim; g.textAlign = 'right';
+  for (let i = 0; i <= ticks; i++){
+    const v = lo + (hi - lo) * i / ticks;
+    const y = Math.round(Y(v)) + 0.5;
+    g.beginPath(); g.moveTo(L, y); g.lineTo(L + pw, y); g.stroke();
+    g.fillText(opts.fmt ? opts.fmt(v) : v.toFixed(0), L - 6, y);
+  }
+
+  /* a highlighted horizontal band, e.g. 12h of daylight or 0 altitude */
+  if (opts.band != null && opts.band >= lo && opts.band <= hi){
+    const y = Math.round(Y(opts.band)) + 0.5;
+    g.save();
+    g.strokeStyle = C.axis; g.setLineDash([3,3]);
+    g.beginPath(); g.moveTo(L, y); g.lineTo(L + pw, y); g.stroke();
+    g.restore();
+  }
+
+  /* month ticks */
+  g.textAlign = 'center'; g.fillStyle = C.dim;
+  for (let m = 0; m < 12; m++){
+    const dn = A.dayOfYear(opts.year, m + 1, 1) - 1;
+    const x = X(dn);
+    g.strokeStyle = C.grid;
+    g.beginPath(); g.moveTo(x, T); g.lineTo(x, T + ph); g.stroke();
+    const dnMid = A.dayOfYear(opts.year, m + 1, 15) - 1;
+    g.fillText(MONTH_LABEL[m], X(dnMid), h - B / 2 + 2);
+  }
+
+  /* solstice / equinox verticals */
+  for (const e of opts.events){
+    const x = X(e.dn);
+    g.strokeStyle = e.kind === 'so' ? 'rgba(255,180,69,.34)' : 'rgba(111,208,140,.34)';
+    g.lineWidth = 1;
+    g.beginPath(); g.moveTo(x, T); g.lineTo(x, T + ph); g.stroke();
+  }
+
+  /* the curve */
+  if (opts.fill){
+    g.beginPath();
+    g.moveTo(X(0), T + ph);
+    for (let i = 0; i < n; i++) g.lineTo(X(i), Y(opts.values[i]));
+    g.lineTo(X(n-1), T + ph);
+    g.closePath();
+    const grd = g.createLinearGradient(0, T, 0, T + ph);
+    grd.addColorStop(0, opts.fill);
+    grd.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = grd;
+    g.fill();
+  }
+  g.beginPath();
+  for (let i = 0; i < n; i++){
+    const x = X(i), y = Y(opts.values[i]);
+    if (i === 0) g.moveTo(x, y); else g.lineTo(x, y);
+  }
+  g.strokeStyle = opts.color; g.lineWidth = 1.8; g.stroke();
+
+  /* today */
+  const ti = Math.max(0, Math.min(n - 1, opts.today));
+  const tx = X(ti), ty = Y(opts.values[ti]);
+  g.strokeStyle = 'rgba(255,255,255,.34)'; g.lineWidth = 1;
+  g.beginPath(); g.moveTo(tx, T); g.lineTo(tx, T + ph); g.stroke();
+  g.fillStyle = opts.color;
+  g.beginPath(); g.arc(tx, ty, 3.6, 0, Math.PI*2); g.fill();
+  g.strokeStyle = '#05070d'; g.lineWidth = 1.4; g.stroke();
+
+  /* title and the value under the cursor */
+  g.textAlign = 'left';
+  g.font = '600 11px system-ui, Segoe UI, Roboto, sans-serif';
+  g.fillStyle = C.text;
+  g.fillText(opts.title, L, T - 9);
+
+  g.textAlign = 'right';
+  g.font = '600 11px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
+  g.fillStyle = opts.color;
+  g.fillText(opts.readout, L + pw, T - 9);
+}
+
+function hoursText(v){
+  const hh = Math.floor(v), mm = Math.round((v - hh) * 60);
+  return mm === 60 ? (hh + 1) + 'h 00m' : hh + 'h ' + String(mm).padStart(2,'0') + 'm';
+}
+
+/*  The year-long series only change when the place or the year changes,
+    so they are cached: scrubbing through dates just redraws.          */
+let cache = null;
+function series(lat, lon, year){
+  const key = lat + '|' + lon + '|' + year;
+  if (cache && cache.key === key) return cache;
+  const N = A.daysInYear(year);
+  const daylight = new Array(N), noonAlt = new Array(N), dist = new Array(N);
+  for (let i = 0; i < N; i++){
+    const d = A.fromDayOfYear(year, i + 1);
+    const c = A.dayCircumstances(year, d.month, d.day, lat, lon);
+    daylight[i] = c.daylight;
+    noonAlt[i]  = c.noonAlt;
+    dist[i]     = c.distKm / 1e6;
+  }
+  const events = A.yearEvents(year).map(e => {
+    // place the mark on the local calendar day the event falls on
+    const d = A.jdToDate(e.jd + lon / 360);
+    return { dn: A.dayOfYear(d.year, d.month, d.day) - 1, kind: e.kind };
+  });
+  cache = { key:key, N:N, daylight:daylight, noonAlt:noonAlt, dist:dist, events:events };
+  return cache;
+}
+
+window.Graphs = {
+  draw(lat, lon, year, todayDn){
+    const s = series(lat, lon, year);
+    const N = s.N, daylight = s.daylight, noonAlt = s.noonAlt, dist = s.dist;
+    const events = s.events;
+    const ti = Math.max(0, Math.min(N - 1, todayDn));
+
+    drawChart(document.getElementById('gDaylight'), {
+      year:year, values:daylight, today:ti, events:events,
+      color:C.sun, fill:'rgba(255,180,69,.20)',
+      yMin:0, yMax:24, ticks:4, band:12,
+      fmt: v => Math.round(v) + 'h',
+      title:'Daylight', readout: hoursText(daylight[ti])
+    });
+
+    /*  Altitude always tops out at 90; the floor drops in 30-degree steps
+        only as far as a polar winter actually needs, so the gridlines stay
+        on round numbers instead of landing on 17 and 42.                */
+    const altMin = Math.min.apply(null, noonAlt);
+    const yLo = Math.min(0, Math.floor(altMin / 30) * 30);
+    drawChart(document.getElementById('gAltitude'), {
+      year:year, values:noonAlt, today:ti, events:events,
+      color:C.cool, fill:'rgba(91,200,255,.18)',
+      yMin:yLo, yMax:90, ticks:(90 - yLo) / 30, band:0,
+      fmt: v => Math.round(v) + '°',
+      title:'Sun height at noon',
+      readout: noonAlt[ti].toFixed(1) + '°'
+    });
+
+    /*  Fixed scale, because the point is how little this moves.  Letting it
+        auto-fit would magnify a 3.3% wobble into a dramatic-looking curve. */
+    drawChart(document.getElementById('gDistance'), {
+      year:year, values:dist, today:ti, events:events,
+      color:C.green, fill:'rgba(111,208,140,.14)',
+      yMin:146.5, yMax:152.5, ticks:3,
+      fmt: v => v.toFixed(1),
+      title:'Distance to the Sun (million km)',
+      readout: dist[ti].toFixed(2) + 'M km'
+    });
+
+    return { daylight:daylight, noonAlt:noonAlt, dist:dist };
+  },
+  hoursText: hoursText
+};
+})();
+</script>
+<script>
+/* =====================================================================
+   Self-test.  Runs once after boot and reports to the console.  It
+   checks the astronomy against published values and the 3D scene
+   geometry against the astronomy, so a silent regression in either one
+   shows up immediately.
+   ===================================================================== */
+window.SeasonSelfTest = function(){
+  const A = window.Astro;
+  let pass = 0, fail = 0;
+  const rows = [];
+  function ok(cond, label, got){
+    (cond ? pass++ : fail++);
+    rows.push({ '': cond ? 'PASS' : 'FAIL', check: label, value: got == null ? '' : String(got) });
+  }
+
+  /* --- turning points land on the right calendar days --- */
+  const want2026 = [[3,20],[6,21],[9,23],[12,21]];
+  A.yearEvents(2026).forEach((e, i) => {
+    const d = A.jdToDate(e.jd);
+    ok(d.month === want2026[i][0] && Math.abs(d.day - want2026[i][1]) <= 1,
+       '2026 ' + e.label,
+       d.year + '-' + d.month + '-' + d.day + ' ' +
+       String(Math.floor(d.hour)).padStart(2,'0') + ':' +
+       String(Math.round((d.hour % 1) * 60)).padStart(2,'0') + ' UTC');
+  });
+
+  /* --- the sub-solar point reaches exactly the tropics --- */
+  ok(Math.abs(A.subsolarPoint(A.julianDay(2026,6,21,12)).lat - A.TROPIC) < 0.1,
+     'June solstice sub-solar latitude = Tropic of Cancer',
+     A.subsolarPoint(A.julianDay(2026,6,21,12)).lat.toFixed(3) + '°');
+  ok(Math.abs(A.subsolarPoint(A.julianDay(2026,12,21,12)).lat + A.TROPIC) < 0.1,
+     'December solstice sub-solar latitude = Tropic of Capricorn',
+     A.subsolarPoint(A.julianDay(2026,12,21,12)).lat.toFixed(3) + '°');
+
+  /* --- daylight, hemispheres, poles --- */
+  const eq = A.dayCircumstances(2026, 6, 21, 0, 0);
+  ok(Math.abs(eq.daylight - 12.1) < 0.15, 'equator daylight stays ~12h at the solstice',
+     eq.daylight.toFixed(2) + 'h');
+  ok(A.dayCircumstances(2026,12,15,69.65,18.96).state === 'polar-night',
+     'Tromso is in polar night on 15 Dec');
+  ok(A.dayCircumstances(2026,6,21,69.65,18.96).state === 'polar-day',
+     'Tromso has midnight sun on 21 Jun');
+
+  const lamJan = A.sunPosition(A.julianDay(2026,1,15,12)).lam;
+  ok(A.seasonFor(lamJan, 43.65).name === 'Winter', 'Toronto in January = Winter');
+  ok(A.seasonFor(lamJan, -33.87).name === 'Summer', 'Sydney in January = Summer');
+  ok(A.seasonFor(lamJan, 1.35).headline === 'No marked seasons',
+     'Singapore is never labelled winter or summer');
+
+  const lon = A.dayCircumstances(2026,6,21,51.51,-0.13).daylight;
+  ok(Math.abs(lon - 16.63) < 0.3, 'London midsummer daylight', lon.toFixed(2) + 'h');
+
+  /* --- perihelion falls in northern winter --- */
+  let best = null;
+  for (let n = 1; n <= 366; n++){
+    const d = A.fromDayOfYear(2026, n);
+    const r = A.sunPosition(A.julianDay(d.year, d.month, d.day, 12)).r;
+    if (!best || r < best.r) best = { r:r, d:d };
+  }
+  ok(best.d.month === 1 && best.d.day <= 6, 'Earth is closest to the Sun in early January',
+     best.d.day + ' Jan, ' + (best.r * A.AU_KM / 1e6).toFixed(2) + 'M km');
+
+  /* --- scene geometry agrees with the astronomy ---
+     The rendered sub-solar marker must actually face the Sun, and the
+     drawn axis must be tilted by exactly the obliquity.               */
+  try {
+    const OV = window.OrbitView._internals;
+    const sunDir = OV.earthMat.uniforms.sunDir.value.clone().normalize();
+
+    const subPos = OV.subGroup.position.clone().normalize();
+    const dot = subPos.dot(sunDir);
+    ok(dot > 0.9995, 'rendered sub-solar marker points straight at the Sun',
+       'cos = ' + dot.toFixed(6));
+
+    const axis = new THREE.Vector3(0,1,0)
+      .applyQuaternion(OV.earthMesh.quaternion).normalize();
+    const tilt = Math.acos(Math.abs(axis.y)) * A.R2D;
+    ok(Math.abs(tilt - A.TROPIC) < 0.02, 'rendered axis tilt equals the obliquity',
+       tilt.toFixed(4) + '°');
+
+    // the pin must sit at the right angular distance from the sub-solar point
+    const pin = OV.cityGroup.userData.pin.position.clone().normalize();
+    const zenithAngle = Math.acos(A.clamp(pin.dot(subPos), -1, 1)) * A.R2D;
+    const city = OV.state.city;
+    const dec = A.sunPosition(OV.state.jd).dec;
+    const sub = A.subsolarPoint(OV.state.jd);
+    const phi = city.lat * A.D2R, dl = (city.lon - sub.lon) * A.D2R, de = dec * A.D2R;
+    const expected = Math.acos(A.clamp(
+      Math.sin(phi)*Math.sin(de) + Math.cos(phi)*Math.cos(de)*Math.cos(dl), -1, 1)) * A.R2D;
+    ok(Math.abs(zenithAngle - expected) < 0.05,
+       'city pin sits at the correct angle from the sub-solar point',
+       zenithAngle.toFixed(3) + '° vs ' + expected.toFixed(3) + '°');
+  } catch (err){
+    ok(false, 'scene geometry checks', String(err));
+  }
+
+  const style = fail ? 'color:#ff6b6b;font-weight:700' : 'color:#4ec98a;font-weight:700';
+  console.log('%cSeasons simulator self-test: ' + pass + ' passed, ' + fail + ' failed',
+              style);
+  if (console.table) console.table(rows);
+  else rows.forEach(r => console.log(r['']+ '  ' + r.check + '  ' + r.value));
+
+  // also leave the result in the DOM, so an automated headless run can read it
+  let out = document.getElementById('selftest-out');
+  if (!out){
+    out = document.createElement('div');
+    out.id = 'selftest-out';
+    out.hidden = true;
+    document.body.appendChild(out);
+  }
+  out.textContent = 'SELFTEST ' + pass + ' passed, ' + fail + ' failed\n' +
+    rows.map(r => r[''] + '  ' + r.check + (r.value ? '  [' + r.value + ']' : '')).join('\n');
+
+  return { pass: pass, fail: fail };
+};
+</script>
+<script>
+/* =====================================================================
+   Application layer: location + date state, readouts, tour, controls.
+   ===================================================================== */
+(function(){
+'use strict';
+const A = window.Astro;
+const $ = id => document.getElementById(id);
+
+/* ------------------------------------------------------------- places */
+
+const COUNTRIES = window.PLACES.map(row => {
+  const bits = row.split('|');
+  return {
+    name: bits[0],
+    cities: bits.slice(1).map(c => {
+      const p = c.split(',');
+      return { name: p[0], lat: parseFloat(p[1]), lon: parseFloat(p[2]) };
+    })
+  };
+});
+
+/* ------------------------------------------------------------- state */
+
+const now = new Date();
+const S = {
+  year: now.getFullYear(),
+  month: now.getMonth() + 1,
+  day: now.getDate(),
+  country: null,
+  city: null,
+  playing: false,
+  speed: 4,
+  texturesOk: true
+};
+
+/* ------------------------------------------------------- formatting */
+
+function pad2(n){ return String(n).padStart(2, '0'); }
+
+function fmtHM(hours){
+  if (hours == null || !isFinite(hours)) return '—';
+  let h = hours;
+  while (h < 0) h += 24;
+  while (h >= 24) h -= 24;
+  let hh = Math.floor(h), mm = Math.round((h - hh) * 60);
+  if (mm === 60){ mm = 0; hh = (hh + 1) % 24; }
+  return pad2(hh) + ':' + pad2(mm);
+}
+
+function fmtDur(hours){
+  const hh = Math.floor(hours), mm = Math.round((hours - hh) * 60);
+  return mm === 60 ? (hh + 1) + 'h 00m' : hh + 'h ' + pad2(mm) + 'm';
+}
+
+function fmtLat(v){
+  return Math.abs(v).toFixed(2) + '° ' + (v >= 0 ? 'N' : 'S');
+}
+function fmtLon(v){
+  return Math.abs(v).toFixed(2) + '° ' + (v >= 0 ? 'E' : 'W');
+}
+const MONTHS = ['January','February','March','April','May','June','July',
+                'August','September','October','November','December'];
+const MON3 = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function fmtDate(d){ return d.day + ' ' + MON3[d.month - 1] + ' ' + d.year; }
+
+/*  Spell out the month block a meteorological season covers.  Read back
+    off the same function the label comes from rather than hard-coding a
+    table, so the southern flip and the winter wrap come out right.     */
+function metRange(name, lat){
+  const ms = [];
+  for (let m = 1; m <= 12; m++) if (A.meteorologicalSeason(m, lat) === name) ms.push(m);
+  if (!ms.length) return '';
+  let start = ms[0];
+  for (const m of ms) if (ms.indexOf(m === 1 ? 12 : m - 1) < 0) start = m;
+  let end = start;
+  for (let k = 1; k < ms.length; k++) end = end === 12 ? 1 : end + 1;
+  return MONTHS[start - 1] + ' – ' + MONTHS[end - 1];
+}
+
+/* ------------------------------------------------- season boundaries */
+
+/*  All turning points from last year to next, so the season containing
+    any date is bracketed correctly even across the New Year.          */
+function bracketEvents(jd, year){
+  let all = [];
+  for (const y of [year - 1, year, year + 1]) all = all.concat(A.yearEvents(y));
+  all.sort((a, b) => a.jd - b.jd);
+  let prev = null, next = null;
+  for (const e of all){
+    if (e.jd <= jd) prev = e;
+    else { next = e; break; }
+  }
+  return { prev: prev, next: next, all: all };
+}
+
+/* ------------------------------------------------------- dropdowns */
+
+function buildCountryList(){
+  const sel = $('countrySel');
+  sel.innerHTML = '';
+  COUNTRIES.forEach((c, i) => {
+    const o = document.createElement('option');
+    o.value = i; o.textContent = c.name;
+    sel.appendChild(o);
+  });
+}
+
+function buildCityList(){
+  const sel = $('citySel');
+  sel.innerHTML = '';
+  S.country.cities.forEach((c, i) => {
+    const o = document.createElement('option');
+    o.value = i;
+    o.textContent = c.name + '  (' + fmtLat(c.lat) + ')';
+    sel.appendChild(o);
+  });
+  sel.disabled = S.country.cities.length < 2;
+}
+
+/*  Best-effort default: match the browser's IANA time zone city against
+    the list.  Falls back to London, which is at least well known.     */
+function guessStart(){
+  let tz = '';
+  try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch(e){}
+  const want = tz.split('/').pop().replace(/_/g, ' ').toLowerCase();
+  if (want){
+    for (let ci = 0; ci < COUNTRIES.length; ci++){
+      const cities = COUNTRIES[ci].cities;
+      for (let i = 0; i < cities.length; i++){
+        if (cities[i].name.toLowerCase().indexOf(want) === 0) return [ci, i];
+      }
+    }
+  }
+  for (let ci = 0; ci < COUNTRIES.length; ci++){
+    if (COUNTRIES[ci].name === 'United Kingdom') return [ci, 0];
+  }
+  return [0, 0];
+}
+
+/* ------------------------------------------------------------- tour */
+
+const TOUR = [
+  { t: 'Earth spins on an axis that is tilted <b>23.44°</b> from straight up. ' +
+       'Crucially, that axis keeps pointing the <b>same way in space</b> all year — ' +
+       'at the star Polaris. It does not swing to follow the Sun.',
+    go(){ OrbitView.setCamera('side'); OrbitView.toggle('axis', true); setToggle('tglAxis', true); } },
+
+  { t: 'Because the tilt is fixed while Earth travels, the same axis leans ' +
+       '<b>toward</b> the Sun in June and <b>away</b> from it in December. ' +
+       'Watch the lit half of the globe move over the pole.',
+    go(){ jumpToEvent(1); OrbitView.setCamera('earth'); } },
+
+  { t: 'Leaning toward the Sun means sunlight arrives <b>steeply</b>. The same ' +
+       'beam is squeezed into a smaller patch of ground, so each square metre ' +
+       'gets more energy. Leaning away spreads the same beam thin.',
+    go(){ OrbitView.setCamera('earth'); OrbitView.toggle('rays', true); setToggle('tglRays', true); } },
+
+  { t: 'The tilt also decides <b>how long</b> the Sun is up. The lit half never ' +
+       'splits the globe evenly except at the equinoxes — jump to December and ' +
+       'the Arctic Circle sits entirely in darkness.',
+    go(){ jumpToEvent(3); OrbitView.setCamera('earth'); OrbitView.toggle('rings', true); setToggle('tglRings', true); } },
+
+  { t: 'Now the myth. Earth is <b>closest</b> to the Sun in early January — ' +
+       'during northern winter. The orbit is only 1.7% off circular, so distance ' +
+       'changes sunlight by about 7% over the year, while the tilt changes it by ' +
+       'several hundred percent. <b>Tilt makes seasons, not distance.</b>',
+    go(){ setDate(S.year, 1, 3); OrbitView.setCamera('top'); } }
+];
+let tourStep = -1;
+
+function renderTour(){
+  const body = $('tourBody');
+  if (tourStep < 0){
+    body.innerHTML = 'Five short steps through the whole mechanism, from the tilt ' +
+                     'to the reason distance is a red herring.';
+  } else {
+    body.innerHTML = '<b>Step ' + (tourStep + 1) + ' of ' + TOUR.length + '.</b> ' + TOUR[tourStep].t;
+  }
+  const dots = $('tourDots');
+  dots.innerHTML = '';
+  for (let i = 0; i < TOUR.length; i++){
+    const d = document.createElement('i');
+    if (i === tourStep) d.className = 'on';
+    dots.appendChild(d);
+  }
+  $('tourPrev').disabled = tourStep <= 0;
+  $('tourNext').textContent = tourStep < 0 ? 'Start tour ›'
+                            : (tourStep === TOUR.length - 1 ? 'Restart' : 'Next ›');
+}
+
+/* --------------------------------------------------------- controls */
+
+function setToggle(id, on){
+  const b = $(id);
+  if (b) b.classList.toggle('on', on);
+}
+
+function jumpToEvent(i){
+  const ev = A.yearEvents(S.year)[i];
+  const d = A.jdToDate(ev.jd + (S.city ? S.city.lon / 360 : 0));
+  setDate(d.year, d.month, d.day);
+}
+
+function setDate(y, m, d){
+  S.year = y; S.month = m; S.day = d;
+  refresh();
+}
+
+function stepDays(n){
+  const jd = A.julianDay(S.year, S.month, S.day, 12) + n;
+  const d = A.jdToDate(jd);
+  setDate(d.year, d.month, d.day);
+}
+
+/* ----------------------------------------------------------- refresh */
+
+let lastYear = null, lastPlaceKey = null;
+
+function refresh(){
+  const city = S.city;
+  const c = A.dayCircumstances(S.year, S.month, S.day, city.lat, city.lon);
+  const sun = c.sun;
+
+  /*  A turning point is an instant, not a day.  The December solstice can
+      fall at 20:49 UTC, so at local noon on the 21st it is still, strictly,
+      autumn — which reads as a bug to anyone who was taught that winter
+      starts on the solstice.  So when a turning point falls on this local
+      calendar day, show the season it begins, and say when it begins.    */
+  let jdSeason = c.jd;
+  let br = bracketEvents(jdSeason, S.year);
+  const nextLocal = A.jdToDate(br.next.jd + city.lon / 360);
+  const startsToday = nextLocal.year === S.year &&
+                      nextLocal.month === S.month && nextLocal.day === S.day;
+  if (startsToday){
+    jdSeason = br.next.jd + 1e-6;
+    br = bracketEvents(jdSeason, S.year);
+  }
+  const season = A.seasonFor(A.sunPosition(jdSeason).lam, city.lat);
+
+  /* ---- date widgets ---- */
+  const dn = A.dayOfYear(S.year, S.month, S.day);
+  const N = A.daysInYear(S.year);
+  const scrub = $('scrub');
+  if (+scrub.max !== N - 1) scrub.max = N - 1;
+  if (+scrub.value !== dn - 1) scrub.value = dn - 1;
+  $('dateInput').value = S.year + '-' + pad2(S.month) + '-' + pad2(S.day);
+  $('dateLabel').textContent = fmtDate({ year:S.year, month:S.month, day:S.day });
+
+  /* ---- season card ---- */
+  const card = $('seasonCard');
+  card.style.setProperty('--sc', season.color);
+  $('seasonName').textContent = season.headline;
+
+  const startD = A.jdToDate(br.prev.jd + city.lon / 360);
+  const endD   = A.jdToDate(br.next.jd + city.lon / 360);
+  const daysIn = Math.max(0, Math.floor(jdSeason - br.prev.jd));
+  const daysTo = Math.max(0, Math.ceil(br.next.jd - jdSeason));
+
+  /*  The turning point may fall earlier today (already passed at local
+      noon) or later today (which is why jdSeason was nudged forward).
+      Either way "began 0 days ago" is a poor way to say it.            */
+  const turnsToday = startD.year === S.year &&
+                     startD.month === S.month && startD.day === S.day;
+
+  /*  Countdown chip.  Naming the season the turning point brings beats
+      naming the event — except in the tropics, where no season is marked
+      and only the event itself carries meaning.                        */
+  const nextSeason = A.seasonFor(A.sunPosition(br.next.jd + 1e-6).lam, city.lat);
+  const inDays = ' in ' + daysTo + (daysTo === 1 ? ' day' : ' days');
+  $('seasonCount').textContent = turnsToday ? 'turning point today'
+    : (season.band === 'equatorial' ? br.next.label + inDays
+                                    : nextSeason.name + inDays);
+
+  /*  Both definitions, side by side.  Meteorological seasons are whole
+      months so climate records line up year to year, which is why a
+      European forecast says autumn on 1 September while the Sun is still
+      17 days short of the equinox.  Showing only one invites "wrong".  */
+  const astroName = $('defAstroName');
+  astroName.textContent = season.name;
+  astroName.style.color = season.color;
+  $('defAstroWhen').textContent = turnsToday
+    ? '· from ' + fmtHM(startD.hour) + ' local today'
+    : '· ' + fmtDate(startD) + ' – ' + fmtDate(endD);
+
+  const met = A.meteorologicalSeason(S.month, city.lat);
+  $('defMetName').textContent = met;
+  $('defMetWhen').textContent = '· ' + metRange(met, city.lat);
+
+  $('seasonSub').innerHTML = turnsToday
+    ? 'The <b style="color:' + season.color + '">' + br.prev.label +
+      '</b> falls today at ' + fmtHM(startD.hour) + ' local time.'
+    : 'Day ' + (daysIn + 1) + ' of the astronomical season · next turning point: ' +
+      br.next.label + ', ' + fmtDate(endD) + '.';
+
+  const badges = $('seasonBadges');
+  badges.innerHTML = '';
+  const addBadge = (txt, cls) => {
+    const b = document.createElement('span');
+    b.className = 'badge' + (cls ? ' ' + cls : '');
+    b.textContent = txt;
+    badges.appendChild(b);
+  };
+  addBadge(season.hemisphere + ' hemisphere');   // meteorological now has its own row
+  if (c.state === 'polar-day')   addBadge('Midnight Sun — never sets', 'warn');
+  if (c.state === 'polar-night') addBadge('Polar night — never rises', 'cold');
+  if (season.band === 'tropical' || season.band === 'equatorial') addBadge('Tropics', 'trop');
+  $('seasonNote').textContent = season.note;
+
+  /* ---- the Sun from there ---- */
+  if (c.state === 'polar-day'){
+    $('stDaylight').textContent = '24h 00m';
+    // there is no sunrise OR sunset today, so neither row has a time
+    $('stRise').textContent = $('stSet').textContent = 'none today';
+  } else if (c.state === 'polar-night'){
+    $('stDaylight').textContent = '0h 00m';
+    $('stRise').textContent = $('stSet').textContent = 'none today';
+  } else {
+    $('stDaylight').textContent = fmtDur(c.daylight);
+    $('stRise').textContent = fmtHM(c.sunrise);
+    $('stSet').textContent  = fmtHM(c.sunset);
+  }
+  $('stNoonAlt').textContent = c.noonAlt > 0
+    ? c.noonAlt.toFixed(1) + '°'
+    : 'below horizon';
+  $('stFlux').textContent = c.noonAlt > 0
+    ? Math.round(c.fluxNoon * 100) + '%'
+    : '0%';
+  $('stInsol').textContent = c.insolation.toFixed(2) + ' kWh/m²';
+
+  const yd = A.jdToDate(A.julianDay(S.year, S.month, S.day, 12) - 1);
+  const prev = A.dayCircumstances(yd.year, yd.month, yd.day, city.lat, city.lon);
+  const dMin = (c.daylight - prev.daylight) * 60;
+  $('stTrend').textContent = (Math.abs(dMin) < 0.05 ? '±0' :
+    (dMin > 0 ? '+' : '−') + Math.abs(dMin).toFixed(1)) + ' min of daylight';
+  $('stTrend').style.color = Math.abs(dMin) < 0.05 ? '' : (dMin > 0 ? '#6fd08c' : '#ff8a5b');
+
+  /* ---- sub-solar ---- */
+  $('stSubLat').textContent = fmtLat(sun.dec);
+  $('stDec').textContent    = (sun.dec >= 0 ? '+' : '−') + Math.abs(sun.dec).toFixed(2) + '°';
+  $('stLam').textContent    = sun.lam.toFixed(2) + '°';
+  $('stNextEv').textContent = daysTo + ' d — ' + br.next.short;
+
+  const oh = A.overheadDates(S.year, city.lat, city.lon);
+  $('subHint').textContent = oh.length
+    ? 'At ' + city.name + ' the Sun passes directly overhead on ' +
+      oh.map(d => d.day + ' ' + MON3[d.month-1]).join(' and ') + '.'
+    : 'The Sun is never directly overhead at ' + city.name +
+      ' — beyond the tropics it always stays at least ' +
+      (Math.abs(city.lat) - A.TROPIC).toFixed(1) + '° short of the zenith at noon.';
+
+  /* ---- distance ---- */
+  const mkm = c.distKm / 1e6;
+  $('stDist').textContent = mkm.toFixed(2) + 'M km';
+  const pct = (sun.r - 1) * 100;
+  $('stDistPct').textContent = (pct >= 0 ? '+' : '−') + Math.abs(pct).toFixed(2) + '%';
+  const frac = A.clamp((mkm - 147.10) / (152.10 - 147.10), 0, 1);
+  $('distMark').style.left = (frac * 100) + '%';
+
+  const northWinter = season.hemisphere === 'Northern' && season.name === 'Winter';
+  const closeIsh = sun.r < 0.995;
+  $('mythBox').innerHTML = closeIsh
+    ? '<strong>Look at this.</strong> Earth is near its <em>closest</em> point to the Sun right now — ' +
+      'and it is ' + (northWinter ? 'the middle of northern winter' :
+      'summer in the south, winter in the north') + '. Distance is not what makes seasons.'
+    : (sun.r > 1.005
+      ? '<strong>And here is the reverse.</strong> Earth is near its <em>farthest</em> point, ' +
+        'yet the northern hemisphere is having its summer. The 3.3% distance swing is ' +
+        'swamped by what the tilt does.'
+      : 'Across the whole year this distance changes by only <strong>3.3%</strong>, ' +
+        'altering sunlight by about 7%. The tilt changes the noon Sun height here by ' +
+        '<strong>' + (2 * A.TROPIC).toFixed(0) + '°</strong> — a far bigger effect.');
+
+  /* ---- 3D + sky + graphs ---- */
+  OrbitView.setDate(c.jd);
+
+  const sky = SkyView.update(city.lat, city.lon, S.year, S.month, S.day);
+  $('skRiseAz').textContent = sky.riseAz == null ? '—' : compass(sky.riseAz);
+  $('skSetAz').textContent  = sky.setAz  == null ? '—' : compass(sky.setAz);
+  $('skNoonAlt').textContent = c.noonAlt > 0 ? c.noonAlt.toFixed(1) + '°' : 'below horizon';
+  $('skMaxAlt').textContent  = sky.maxNoonAlt.toFixed(1) + '°' +
+    (Math.abs(city.lat) <= A.TROPIC ? ' (straight overhead)' : '');
+  $('skMinAlt').textContent  = sky.minNoonAlt > 0
+    ? sky.minNoonAlt.toFixed(1) + '°'
+    : sky.minNoonAlt.toFixed(1) + '° (Sun stays down)';
+
+  if (S.year !== lastYear) rebuildEventButtons();
+  lastYear = S.year;
+  renderTimelineMarks();
+
+  Graphs.draw(city.lat, city.lon, S.year, dn - 1);
+}
+
+function compass(az){
+  const NAMES = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+  return Math.round(az) + '° ' + NAMES[Math.round(az / 22.5) % 16];
+}
+
+/*  Tick marks above the scrubber at the four turning points.  A range
+    thumb travels from half its own width to the track end minus the same,
+    so the offsets are expressed against that inset rather than 0-100%.  */
+let lastMarksKey = null;
+function renderTimelineMarks(){
+  const key = S.year + '|' + S.city.lon;
+  if (key === lastMarksKey) return;
+  lastMarksKey = key;
+
+  const wrap = $('tlMarks');
+  wrap.innerHTML = '';
+  const N = A.daysInYear(S.year);
+  for (const e of A.yearEvents(S.year)){
+    const d = A.jdToDate(e.jd + S.city.lon / 360);
+    const frac = (A.dayOfYear(d.year, d.month, d.day) - 1) / (N - 1);
+    const i = document.createElement('i');
+    i.className = e.kind;
+    i.style.left = 'calc(8px + ' + frac.toFixed(5) + ' * (100% - 16px))';
+    i.title = e.label + ' — ' + fmtDate(d);
+    wrap.appendChild(i);
+  }
+}
+
+function rebuildEventButtons(){
+  const wrap = $('eventBtns');
+  wrap.innerHTML = '';
+  A.yearEvents(S.year).forEach((e, i) => {
+    const b = document.createElement('button');
+    b.className = 'btn';
+    b.textContent = e.short;
+    b.title = e.label + ' ' + S.year + ' — ' + A.jdToDate(e.jd).year + '-' +
+              pad2(A.jdToDate(e.jd).month) + '-' + pad2(A.jdToDate(e.jd).day) + ' UTC';
+    b.onclick = () => { stopPlay(); jumpToEvent(i); };
+    wrap.appendChild(b);
+  });
+}
+
+/* ---------------------------------------------------------- playback */
+
+let playRaf = null, playLast = 0, playAcc = 0;
+
+function startPlay(){
+  if (S.playing) return;
+  S.playing = true;
+  $('playBtn').textContent = '❚❚ Pause';
+  $('playBtn').classList.add('on');
+  playLast = performance.now(); playAcc = 0;
+  const tick = t => {
+    if (!S.playing) return;
+    playRaf = requestAnimationFrame(tick);
+    playAcc += (t - playLast) / 1000 * S.speed;
+    playLast = t;
+    if (playAcc >= 1){
+      const n = Math.floor(playAcc);
+      playAcc -= n;
+      stepDays(n);
+    }
+  };
+  playRaf = requestAnimationFrame(tick);
+}
+
+function stopPlay(){
+  S.playing = false;
+  if (playRaf) cancelAnimationFrame(playRaf);
+  $('playBtn').textContent = '▶ Play';
+  $('playBtn').classList.remove('on');
+}
+
+/* ------------------------------------------------------------- wiring */
+
+function selectCity(ci, cityIdx){
+  S.country = COUNTRIES[ci];
+  $('countrySel').value = ci;
+  buildCityList();
+  const idx = Math.min(cityIdx || 0, S.country.cities.length - 1);
+  $('citySel').value = idx;
+  S.city = S.country.cities[idx];
+  $('coordHint').textContent = fmtLat(S.city.lat) + ', ' + fmtLon(S.city.lon) +
+    ' · ' + bandName(S.city.lat);
+  OrbitView.setCity(S.city);
+  SkyView.resetView();
+}
+
+function bandName(lat){
+  const a = Math.abs(lat);
+  if (a <= 10) return 'equatorial';
+  if (a < A.TROPIC) return 'tropics';
+  if (a >= A.POLAR) return lat > 0 ? 'inside the Arctic Circle' : 'inside the Antarctic Circle';
+  return 'mid-latitudes';
+}
+
+function wire(){
+  $('countrySel').addEventListener('change', e => {
+    selectCity(+e.target.value, 0);
+    refresh();
+  });
+  $('citySel').addEventListener('change', e => {
+    selectCity(+$('countrySel').value, +e.target.value);
+    refresh();
+  });
+
+  $('scrub').addEventListener('input', e => {
+    stopPlay();
+    const d = A.fromDayOfYear(S.year, +e.target.value + 1);
+    setDate(d.year, d.month, d.day);
+  });
+
+  $('dateInput').addEventListener('change', e => {
+    const m = e.target.value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m) return;
+    stopPlay();
+    setDate(+m[1], +m[2], +m[3]);
+  });
+
+  $('dayPrev').onclick = () => { stopPlay(); stepDays(-1); };
+  $('dayNext').onclick = () => { stopPlay(); stepDays(1); };
+  $('playBtn').onclick = () => { S.playing ? stopPlay() : startPlay(); };
+  $('speedSel').addEventListener('change', e => { S.speed = parseFloat(e.target.value); });
+  $('todayBtn').onclick = () => {
+    stopPlay();
+    const t = new Date();
+    setDate(t.getFullYear(), t.getMonth() + 1, t.getDate());
+  };
+
+  document.querySelectorAll('[data-cam]').forEach(b => {
+    b.onclick = () => OrbitView.setCamera(b.getAttribute('data-cam'));
+  });
+
+  const tg = (id, key) => {
+    $(id).onclick = () => {
+      const on = !$(id).classList.contains('on');
+      setToggle(id, on);
+      OrbitView.toggle(key, on);
+    };
+  };
+  tg('tglRings', 'rings');
+  tg('tglAxis', 'axis');
+  tg('tglRays', 'rays');
+
+  document.querySelectorAll('.tab').forEach(t => {
+    t.onclick = () => {
+      document.querySelectorAll('.tab').forEach(x => x.classList.remove('on'));
+      document.querySelectorAll('.tabpane').forEach(x => x.classList.remove('on'));
+      t.classList.add('on');
+      $('pane-' + t.getAttribute('data-tab')).classList.add('on');
+      if (t.getAttribute('data-tab') === 'graph') refresh();
+    };
+  });
+
+  $('tourNext').onclick = () => {
+    tourStep = tourStep >= TOUR.length - 1 ? 0 : tourStep + 1;
+    renderTour();
+    TOUR[tourStep].go();
+  };
+  $('tourPrev').onclick = () => {
+    if (tourStep > 0){ tourStep--; renderTour(); TOUR[tourStep].go(); }
+  };
+
+  window.addEventListener('keydown', e => {
+    if (/INPUT|SELECT|TEXTAREA/.test((e.target.tagName || ''))) return;
+    if (e.key === 'ArrowLeft'){ stopPlay(); stepDays(e.shiftKey ? -7 : -1); e.preventDefault(); }
+    if (e.key === 'ArrowRight'){ stopPlay(); stepDays(e.shiftKey ? 7 : 1); e.preventDefault(); }
+    if (e.key === ' '){ S.playing ? stopPlay() : startPlay(); e.preventDefault(); }
+  });
+
+  let rz = null;
+  window.addEventListener('resize', () => {
+    clearTimeout(rz);
+    rz = setTimeout(() => Graphs.draw(S.city.lat, S.city.lon, S.year,
+                                      A.dayOfYear(S.year, S.month, S.day) - 1), 140);
+  });
+}
+
+/* ---------------------------------------------------------------- boot */
+
+async function boot(){
+  buildCountryList();
+  const [ci, cityIdx] = guessStart();
+
+  SkyView.init($('skyCanvas'));
+  const res = await OrbitView.init($('orbitCanvas'), {});
+  S.texturesOk = res.texturesOk;
+
+  selectCity(ci, cityIdx);
+  wire();
+  renderTour();
+  rebuildEventButtons();
+  refresh();
+
+  if (!S.texturesOk){
+    $('scaleWarn').textContent = 'Offline globe — map textures unavailable';
+    $('scaleWarn').title = 'The Earth texture CDN could not be reached, so a ' +
+      'generated stand-in globe is shown. Every number and angle is unaffected.';
+  }
+
+  $('boot').classList.add('gone');
+  setTimeout(() => { const b = $('boot'); if (b) b.remove(); }, 450);
+
+  /*  The scene checks in the self-test read what has actually been drawn,
+      so wait for a frame that used the current date and city.          */
+  if (window.SeasonSelfTest){
+    requestAnimationFrame(() => requestAnimationFrame(() => window.SeasonSelfTest()));
+  }
+}
+
+window.addEventListener('error', ev => {
+  const f = $('fatal');
+  if (!f || f.style.display === 'grid') return;
+  f.style.display = 'grid';
+  $('fatalMsg').textContent = (ev.message || 'Unknown error') +
+    '\n' + (ev.filename || '') + ':' + (ev.lineno || '') +
+    '\n\nIf this says THREE is not defined, the three.js CDN could not be reached — ' +
+    'this page needs a network connection the first time it loads.';
+});
+
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+else boot();
+})();
+</script>
+
+</body>
+</html>

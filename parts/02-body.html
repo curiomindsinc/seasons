@@ -1,0 +1,198 @@
+<div id="boot"><div class="bootin"><div class="ring"></div>Loading three.js &amp; Earth textures…</div></div>
+<div id="fatal"><div class="box"><h3>Could not start the simulator</h3><pre id="fatalMsg"></pre></div></div>
+
+<div id="app">
+
+  <header>
+    <h1>Why Earth Has Seasons</h1>
+    <span class="sub">Axial tilt + orbit → the season at any place, on any date</span>
+    <span class="spacer"></span>
+    <span class="scale-warn" id="scaleWarn">Sizes not to scale · orbit shape is real</span>
+  </header>
+
+  <main>
+
+    <!-- ======================= LEFT PANEL ======================= -->
+    <aside class="panel left">
+
+      <div class="sec">
+        <h2>Your location</h2>
+        <label class="f"><span>Country</span>
+          <select id="countrySel"></select>
+        </label>
+        <label class="f" style="margin-bottom:0"><span>City</span>
+          <select id="citySel"></select>
+        </label>
+        <div class="hint" id="coordHint"></div>
+      </div>
+
+      <div class="sec">
+        <h2>Season there, on this date</h2>
+        <div class="season-card" id="seasonCard">
+          <div class="season-head">
+            <span class="season-name" id="seasonName">—</span>
+            <span class="season-count" id="seasonCount"></span>
+          </div>
+          <!--  Two definitions, shown at equal weight.  Central European
+                sources call 1 September autumn while the Sun says summer
+                until the equinox; burying either one reads as an error.  -->
+          <dl class="season-defs" id="seasonDefs">
+            <dt>Astronomical</dt>
+            <dd><b id="defAstroName">—</b> <span id="defAstroWhen"></span></dd>
+            <dt>Meteorological</dt>
+            <dd><b id="defMetName">—</b> <span id="defMetWhen"></span></dd>
+          </dl>
+          <div class="season-sub" id="seasonSub"></div>
+          <div class="badges" id="seasonBadges"></div>
+        </div>
+        <div class="hint" id="seasonNote"></div>
+      </div>
+
+      <div class="sec">
+        <h2>The Sun from there</h2>
+        <dl class="stats">
+          <dt>Daylight length</dt>            <dd class="hi" id="stDaylight">—</dd>
+          <dt>Sunrise <span style="opacity:.6">(solar)</span></dt> <dd id="stRise">—</dd>
+          <dt>Sunset <span style="opacity:.6">(solar)</span></dt>  <dd id="stSet">—</dd>
+          <dt>Sun height at noon</dt>         <dd class="hi" id="stNoonAlt">—</dd>
+          <dt>Noon strength vs. overhead</dt> <dd id="stFlux">—</dd>
+          <dt>Solar energy per day</dt>       <dd class="cool" id="stInsol">—</dd>
+          <dt>Change since yesterday</dt>     <dd id="stTrend">—</dd>
+        </dl>
+        <div class="hint">Times are <b>local solar time</b> from your longitude — no time-zone or daylight-saving offset. Solar noon is when the Sun is truly highest.</div>
+      </div>
+
+      <div class="sec">
+        <h2>Where the Sun is overhead</h2>
+        <dl class="stats">
+          <dt>Sub-solar latitude</dt> <dd class="hi" id="stSubLat">—</dd>
+          <dt>Sun&rsquo;s declination</dt> <dd id="stDec">—</dd>
+          <dt>Ecliptic longitude</dt> <dd id="stLam">—</dd>
+          <dt>Days to next turning point</dt> <dd id="stNextEv">—</dd>
+        </dl>
+        <div class="hint" id="subHint"></div>
+      </div>
+
+      <div class="sec">
+        <h2>Distance to the Sun</h2>
+        <dl class="stats">
+          <dt>Right now</dt> <dd class="cool" id="stDist">—</dd>
+          <dt>Compared to average</dt> <dd id="stDistPct">—</dd>
+        </dl>
+        <div class="distbar"><i id="distMark" style="left:50%"></i></div>
+        <div class="distlabels"><span>147.1M km<br>perihelion</span><span style="text-align:right">152.1M km<br>aphelion</span></div>
+        <div class="myth" id="mythBox"></div>
+      </div>
+
+      <div class="sec">
+        <h2>Guided tour</h2>
+        <div class="tour-body" id="tourBody"></div>
+        <div class="tour-nav">
+          <div class="tour-dots" id="tourDots"></div>
+          <button class="btn" id="tourPrev">‹ Back</button>
+          <button class="btn primary" id="tourNext">Next ›</button>
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- ======================= CENTRE STAGE ======================= -->
+    <section class="stage">
+      <canvas id="orbitCanvas"></canvas>
+
+      <div class="stage-tl"><div class="ttl">Orbit view</div></div>
+
+      <div class="stage-tr">
+        <button class="btn" data-cam="side">Edge-on</button>
+        <button class="btn" data-cam="top">Top-down</button>
+        <button class="btn" data-cam="earth">Zoom to Earth</button>
+        <button class="btn on" id="tglRings">Circles</button>
+        <button class="btn on" id="tglAxis">Axis</button>
+        <button class="btn on" id="tglRays">Sunlight</button>
+      </div>
+
+      <div class="stage-bl">
+        <span><i style="background:#ffb445"></i>Sun</span>
+        <span><i style="background:#5bc8ff"></i>Your city</span>
+        <span><i style="background:#ff5f5f"></i>Sub-solar point (Sun overhead)</span>
+        <span><i style="background:#6fd08c"></i>Equator &nbsp;<i style="background:#c79bff"></i>Tropics &nbsp;<i style="background:#7fb8ff"></i>Polar circles</span>
+      </div>
+      <div class="stage-hint">drag to orbit · scroll to zoom · right-drag to pan</div>
+    </section>
+
+    <!-- ======================= RIGHT PANEL ======================= -->
+    <aside class="panel right">
+      <div class="tabs">
+        <button class="tab on" data-tab="sky">Sky at your city</button>
+        <button class="tab" data-tab="graph">Across the year</button>
+      </div>
+
+      <div class="tabpane on" id="pane-sky">
+        <div id="skyWrap">
+          <canvas id="skyCanvas"></canvas>
+          <div class="sky-legend">
+            <span><i style="background:#ffb445"></i>this date</span>
+            <span><i style="background:#ffd9a6;opacity:.5"></i>June solstice</span>
+            <span><i style="background:#7fb8ff;opacity:.5"></i>December solstice</span>
+            <span><i style="background:#6fd08c;opacity:.5"></i>equinox</span>
+          </div>
+        </div>
+        <div class="sky-facts">
+          <dl class="stats">
+            <dt>Sunrise direction</dt> <dd id="skRiseAz">—</dd>
+            <dt>Sunset direction</dt>  <dd id="skSetAz">—</dd>
+            <dt>Noon Sun height</dt>   <dd class="hi" id="skNoonAlt">—</dd>
+            <dt>Highest it ever gets here</dt> <dd id="skMaxAlt">—</dd>
+            <dt>Lowest noon of the year</dt>   <dd id="skMinAlt">—</dd>
+          </dl>
+          <div class="hint">The Sun traces a flatter, shorter arc in winter — less time above the horizon <em>and</em> a lower angle. Both cut the heat.</div>
+        </div>
+      </div>
+
+      <div class="tabpane" id="pane-graph">
+        <canvas class="graph" id="gDaylight" height="188"></canvas>
+        <div class="graph-cap">Hours of daylight through the year at your city.</div>
+        <canvas class="graph" id="gAltitude" height="188"></canvas>
+        <div class="graph-cap">Height of the Sun at solar noon. Flat sunlight spreads the same energy over more ground.</div>
+        <canvas class="graph" id="gDistance" height="150"></canvas>
+        <div class="graph-cap" id="distCap">Earth&rsquo;s distance from the Sun. Note how small the swing is — and that its minimum sits in <em>January</em>.</div>
+      </div>
+    </aside>
+
+  </main>
+
+  <!-- ======================= TIMELINE ======================= -->
+  <footer>
+    <div class="tl-top">
+      <span class="tl-date" id="dateLabel">—</span>
+      <input type="date" id="dateInput" min="1900-01-01" max="2199-12-31">
+      <button class="btn" id="dayPrev" title="Previous day">‹ Day</button>
+      <button class="btn" id="dayNext" title="Next day">Day ›</button>
+      <button class="btn primary" id="playBtn">▶ Play</button>
+      <span class="speed">
+        speed
+        <select id="speedSel" style="width:auto">
+          <option value="0.25">¼ day/s</option>
+          <option value="1">1 day/s</option>
+          <option value="4" selected>4 days/s</option>
+          <option value="12">12 days/s</option>
+          <option value="30">30 days/s</option>
+        </select>
+      </span>
+      <span class="spacer" style="flex:1"></span>
+      <div class="btn-row" id="eventBtns"></div>
+      <button class="btn" id="todayBtn">Today</button>
+    </div>
+    <div class="scrub-wrap">
+      <div class="marks" id="tlMarks"></div>
+      <input type="range" id="scrub" min="0" max="364" step="1" value="0">
+      <div class="months">
+        <span>JAN</span><span>FEB</span><span>MAR</span><span>APR</span><span>MAY</span><span>JUN</span>
+        <span>JUL</span><span>AUG</span><span>SEP</span><span>OCT</span><span>NOV</span><span>DEC</span>
+      </div>
+    </div>
+  </footer>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.149.0/three.min.js"></script>

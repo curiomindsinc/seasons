@@ -1,0 +1,6 @@
+* text=auto eol=lf
+
+# Shell scripts must keep LF or they break on Linux/macOS.
+*.sh text eol=lf
+
+*.png binary

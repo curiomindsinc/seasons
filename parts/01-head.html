@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Why Earth Has Seasons — Tilt &amp; Orbit Simulator</title>
+<style>
+  :root{
+    --bg:#05070d;
+    --panel:#0a0e18;
+    --panel-2:#0e1422;
+    --line:#1b2436;
+    --line-2:#2a3650;
+    --text:#dce3f0;
+    --muted:#7c8aa5;
+    --dim:#4d5a72;
+    --sun:#ffb445;
+    --cool:#5bc8ff;
+    --spring:#6fd08c;
+    --summer:#ffb445;
+    --autumn:#ff8a5b;
+    --winter:#7fb8ff;
+    --tropic:#c79bff;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);
+    font-size:13px;line-height:1.45;overflow:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  button,select,input{font:inherit;color:inherit}
+
+  /* ---------- app frame ---------- */
+  #app{display:grid;grid-template-rows:auto 1fr auto;height:100vh;height:100dvh}
+
+  header{
+    display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;
+    padding:9px 16px;border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg,#0b1120,#070a12);
+  }
+  header h1{margin:0;font-size:14px;font-weight:650;letter-spacing:.2px}
+  header .sub{color:var(--muted);font-size:12px}
+  header .spacer{flex:1}
+  .scale-warn{
+    font-size:11px;color:#ffcf8a;background:rgba(255,180,69,.09);
+    border:1px solid rgba(255,180,69,.28);border-radius:99px;padding:2px 10px;
+  }
+
+  main{
+    display:grid;
+    grid-template-columns:290px minmax(0,1fr) 340px;
+    min-height:0;
+  }
+  .panel{
+    background:var(--panel);min-height:0;overflow-y:auto;overscroll-behavior:contain;
+    scrollbar-width:thin;scrollbar-color:var(--line-2) transparent;
+  }
+  .panel::-webkit-scrollbar{width:9px}
+  .panel::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:9px;border:3px solid var(--panel)}
+  .panel.left{border-right:1px solid var(--line)}
+  .panel.right{border-left:1px solid var(--line);display:flex;flex-direction:column;overflow:hidden}
+
+  .stage{position:relative;min-width:0;background:#03050a}
+  #orbitCanvas{display:block;width:100%;height:100%}
+
+  /* ---------- panel sections ---------- */
+  .sec{padding:12px 14px;border-bottom:1px solid var(--line)}
+  .sec:last-child{border-bottom:none}
+  .sec h2{
+    margin:0 0 9px;font-size:10.5px;font-weight:700;letter-spacing:.13em;
+    text-transform:uppercase;color:var(--dim);
+  }
+  label.f{display:block;margin-bottom:8px}
+  label.f > span{display:block;font-size:11px;color:var(--muted);margin-bottom:3px}
+  select,input[type=date],input[type=number]{
+    width:100%;background:var(--panel-2);border:1px solid var(--line-2);
+    border-radius:6px;padding:6px 8px;font-size:12.5px;
+  }
+  select:focus,input:focus{outline:2px solid rgba(91,200,255,.45);outline-offset:0;border-color:transparent}
+
+  /* ---------- readouts ---------- */
+  .season-card{
+    border:1px solid var(--line-2);border-radius:9px;padding:11px 12px;
+    background:var(--panel-2);position:relative;overflow:hidden;
+  }
+  .season-card::before{
+    content:"";position:absolute;inset:0 auto 0 0;width:3px;background:var(--sc,var(--dim));
+  }
+  .season-head{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+  .season-name{font-size:19px;font-weight:660;letter-spacing:-.01em;color:var(--sc,var(--text))}
+  .season-count{
+    font-size:10.5px;padding:2px 8px;border-radius:99px;white-space:nowrap;
+    color:var(--sc,var(--muted));border:1px solid currentColor;opacity:.85;
+  }
+  .season-count:empty{display:none}
+
+  /*  Label / value grid.  Both definitions get the same type size so
+      neither looks like a footnote to the other.  */
+  .season-defs{
+    display:grid;grid-template-columns:auto 1fr;gap:2px 10px;
+    margin:8px 0 0;padding-top:8px;border-top:1px solid var(--line-2);
+  }
+  .season-defs dt{font-size:11.5px;color:var(--muted)}
+  .season-defs dd{margin:0;font-size:11.5px;color:var(--text)}
+  .season-defs dd b{font-weight:620}
+  .season-defs dd span{color:var(--muted)}
+
+  .season-sub{font-size:11.5px;color:var(--muted);margin-top:8px}
+  .badges{display:flex;flex-wrap:wrap;gap:5px;margin-top:9px}
+  .badge{
+    font-size:10.5px;padding:2px 8px;border-radius:99px;
+    border:1px solid var(--line-2);color:var(--muted);background:rgba(255,255,255,.02);
+  }
+  .badge.warn{color:#ffcf8a;border-color:rgba(255,180,69,.35);background:rgba(255,180,69,.08)}
+  .badge.cold{color:#a9cdff;border-color:rgba(127,184,255,.35);background:rgba(127,184,255,.08)}
+  .badge.trop{color:#d9c0ff;border-color:rgba(199,155,255,.35);background:rgba(199,155,255,.08)}
+
+  dl.stats{display:grid;grid-template-columns:1fr auto;gap:5px 10px;margin:0}
+  dl.stats dt{color:var(--muted);font-size:11.5px;min-width:0}
+  dl.stats dd{margin:0;font-family:var(--mono);font-size:12.5px;text-align:right;font-variant-numeric:tabular-nums}
+  dl.stats dd.hi{color:var(--sun)}
+  dl.stats dd.cool{color:var(--cool)}
+  .hint{font-size:11px;color:var(--dim);margin-top:8px;line-height:1.4}
+
+  /* ---------- distance / misconception ---------- */
+  .distbar{height:6px;border-radius:99px;background:var(--panel-2);border:1px solid var(--line-2);position:relative;margin:8px 0 5px}
+  .distbar i{position:absolute;top:-3px;width:2px;height:10px;background:var(--cool);border-radius:2px;transition:left .18s}
+  .distlabels{display:flex;justify-content:space-between;font-size:10px;color:var(--dim);font-family:var(--mono)}
+  .myth{
+    margin-top:9px;font-size:11.5px;line-height:1.45;color:#ffd9a6;
+    background:rgba(255,180,69,.07);border:1px solid rgba(255,180,69,.22);
+    border-radius:7px;padding:8px 10px;
+  }
+  .myth strong{color:#ffb445}
+
+  /* ---------- tour ---------- */
+  .tour-body{font-size:12px;color:var(--text);min-height:84px}
+  .tour-body b{color:var(--cool);font-weight:620}
+  .tour-nav{display:flex;align-items:center;gap:7px;margin-top:9px}
+  .tour-dots{display:flex;gap:4px;flex:1}
+  .tour-dots i{width:5px;height:5px;border-radius:99px;background:var(--line-2)}
+  .tour-dots i.on{background:var(--cool)}
+
+  /* ---------- buttons ---------- */
+  .btn{
+    background:var(--panel-2);border:1px solid var(--line-2);border-radius:6px;
+    padding:5px 10px;font-size:11.5px;cursor:pointer;transition:.13s;white-space:nowrap;
+  }
+  .btn:hover{background:#16203a;border-color:#3a4a6b}
+  .btn:active{transform:translateY(1px)}
+  .btn.on{background:rgba(91,200,255,.14);border-color:rgba(91,200,255,.5);color:#bfe6ff}
+  .btn.primary{background:rgba(255,180,69,.15);border-color:rgba(255,180,69,.45);color:#ffcf8a}
+  .btn:disabled{opacity:.4;cursor:default}
+  .btn-row{display:flex;gap:6px;flex-wrap:wrap}
+
+  /* ---------- right panel tabs ---------- */
+  .tabs{display:flex;gap:2px;padding:8px 10px 0;border-bottom:1px solid var(--line);flex-shrink:0}
+  .tab{
+    background:none;border:none;border-bottom:2px solid transparent;
+    padding:6px 11px 8px;font-size:12px;color:var(--muted);cursor:pointer;
+  }
+  .tab.on{color:var(--text);border-bottom-color:var(--sun)}
+  .tabpane{display:none;flex:1;min-height:0;flex-direction:column;overflow-y:auto}
+  .tabpane.on{display:flex}
+  #skyWrap{position:relative;flex:1;min-height:240px}
+  #skyCanvas{display:block;width:100%;height:100%}
+  .sky-legend{
+    position:absolute;left:9px;bottom:8px;font-size:10.5px;color:var(--muted);
+    display:flex;flex-direction:column;gap:2px;pointer-events:none;
+  }
+  .sky-legend span{display:flex;align-items:center;gap:5px}
+  .sky-legend i{width:13px;height:2px;border-radius:2px;flex-shrink:0}
+  .sky-facts{padding:10px 12px;border-top:1px solid var(--line);flex-shrink:0}
+  .graph{width:100%;display:block}
+  .graph-cap{font-size:11px;color:var(--muted);padding:0 12px 12px;line-height:1.4}
+
+  /* ---------- overlays on 3D stage ---------- */
+  .stage-tl{position:absolute;top:10px;left:12px;pointer-events:none}
+  .stage-tl .ttl{font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--dim);font-weight:700}
+  .stage-tr{position:absolute;top:9px;right:12px;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;max-width:64%}
+  .stage-bl{
+    position:absolute;left:12px;bottom:10px;font-size:10.5px;color:var(--dim);
+    display:flex;flex-direction:column;gap:3px;pointer-events:none;
+  }
+  .stage-bl span{display:flex;align-items:center;gap:6px}
+  .stage-bl i{width:9px;height:9px;border-radius:2px;flex-shrink:0}
+  .stage-hint{position:absolute;right:12px;bottom:10px;font-size:10.5px;color:var(--dim);pointer-events:none}
+
+  /* ---------- timeline ---------- */
+  footer{
+    border-top:1px solid var(--line);background:linear-gradient(0deg,#0b1120,#070a12);
+    padding:9px 16px 11px;display:flex;flex-direction:column;gap:8px;
+  }
+  .tl-top{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+  .tl-date{
+    font-family:var(--mono);font-size:15px;font-weight:600;letter-spacing:-.01em;
+    min-width:120px;font-variant-numeric:tabular-nums;
+  }
+  input[type=date]{width:auto;min-width:146px}
+  .scrub-wrap{position:relative}
+  input[type=range]{width:100%;margin:0;accent-color:var(--sun);height:18px;display:block}
+  .months{
+    display:grid;grid-template-columns:repeat(12,1fr);font-size:9.5px;color:var(--dim);
+    font-family:var(--mono);letter-spacing:.04em;margin-top:-1px;
+  }
+  .months span{text-align:center}
+  .marks{position:relative;height:0;pointer-events:none;z-index:2}
+  .marks i{position:absolute;top:-13px;width:2px;height:10px;border-radius:2px;background:var(--line-2)}
+  .marks i.eq{background:#6fd08c;box-shadow:0 0 5px rgba(111,208,140,.6)}
+  .marks i.so{background:#ffb445;box-shadow:0 0 5px rgba(255,180,69,.6)}
+
+  .speed{display:flex;align-items:center;gap:5px;color:var(--muted);font-size:11px}
+
+  /* ---------- loading / error ---------- */
+  #boot{
+    position:fixed;inset:0;display:grid;place-items:center;background:var(--bg);z-index:50;
+    transition:opacity .35s;font-size:12px;color:var(--muted);
+  }
+  #boot.gone{opacity:0;pointer-events:none}
+  #boot .bootin{text-align:center}
+  #boot .ring{
+    width:34px;height:34px;margin:0 auto 12px;border-radius:50%;
+    border:2px solid var(--line-2);border-top-color:var(--sun);animation:spin 1s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg)}}
+  #fatal{
+    position:fixed;inset:0;display:none;place-items:center;background:var(--bg);z-index:60;padding:30px;
+  }
+  #fatal .box{max-width:540px;border:1px solid rgba(255,120,120,.4);background:rgba(255,80,80,.06);border-radius:10px;padding:18px}
+  #fatal h3{margin:0 0 8px;color:#ff9b9b;font-size:14px}
+  #fatal pre{white-space:pre-wrap;font-family:var(--mono);font-size:11px;color:var(--muted);margin:0}
+
+  /* ---------- responsive ---------- */
+  @media (max-width:1180px){
+    main{grid-template-columns:252px minmax(0,1fr) 302px}
+  }
+  @media (max-width:960px){
+    body{overflow:auto}
+    #app{height:auto}
+    main{grid-template-columns:1fr;grid-template-rows:auto 62vh auto}
+    .panel.left{border-right:none;border-bottom:1px solid var(--line)}
+    .panel.right{border-left:none;border-top:1px solid var(--line);height:74vh}
+    footer{position:sticky;bottom:0;z-index:5}
+  }
+</style>
+</head>
+<body>
