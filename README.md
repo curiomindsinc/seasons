@@ -8,10 +8,33 @@ all update from the same astronomical calculation.
 
 ## Layout
 
-    season.html        the deliverable — self-contained, ~118 KB
+    season.html        the deliverable — self-contained, ~120 KB
+    seasonweb.html     same simulator, assembled from GitHub at run time
     build.sh           rebuilds season.html from parts/
     parts/             the editable source, 11 fragments
     tests/             see below
+
+## seasonweb.html — the always-current copy
+
+`season.html` is a snapshot: it shows whatever was built the last time someone
+ran `build.sh`. `seasonweb.html` is a ~7 KB loader that holds no simulator code
+at all. On every open it fetches the eleven fragments straight from
+`github.com/curiomindsinc/seasons`, concatenates them in exactly the order
+`build.sh` uses, and hands the assembled document to an iframe — so it runs
+whatever is on the branch right now.
+
+Open it from disk like any other file; both mirrors send
+`Access-Control-Allow-Origin: *`, so no server is needed.
+
+    seasonweb.html                      latest main
+    seasonweb.html?ref=v1.2             a tag, branch or commit SHA
+    seasonweb.html?mirror=jsdelivr      jsDelivr instead of raw.githubusercontent
+
+It reads from raw.githubusercontent by default, which reflects a push within
+about five minutes; jsDelivr is a faster CDN but can pin a moving ref for up to
+twelve hours. Each fragment falls back to the other mirror on its own, so one
+being down or rate-limited is survivable. Requires network access — and the
+repository must stay public.
 
 ## Editing
 
@@ -20,7 +43,11 @@ all update from the same astronomical calculation.
     ./build.sh
 
 Order matters: `11-selftest` is concatenated before `10-app`, because `boot()`
-in the app calls `window.SeasonSelfTest`.
+in the app calls `window.SeasonSelfTest`. `seasonweb.html` repeats that order in
+its own `PARTS` list — change one and change the other.
+
+Never hand-edit `season.html`: the next `build.sh` silently overwrites it.
+Anything that must survive belongs in `parts/`.
 
 ## Tests
 

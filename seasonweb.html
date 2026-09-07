@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Why Earth Has Seasons — web loader</title>
+<style>
+  :root{
+    --bg:#05070d;
+    --panel:#0a0e18;
+    --line:#1b2436;
+    --ink:#e8eef8;
+    --dim:#8a97ad;
+    --accent:#ffcf5c;
+    --ok:#57d18a;
+    --bad:#ff6b6b;
+  }
+  html,body{height:100%}
+  body{
+    margin:0;background:var(--bg);color:var(--ink);
+    font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    overflow:hidden;
+  }
+  #stage{position:fixed;inset:0;border:0;width:100%;height:100%;display:none;background:var(--bg)}
+  #stage.ready{display:block}
+
+  #loader{
+    position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+    padding:24px;box-sizing:border-box;
+  }
+  #loader.done{display:none}
+  .card{
+    width:min(560px,100%);background:var(--panel);
+    border:1px solid var(--line);border-radius:12px;padding:22px 24px;
+  }
+  h1{margin:0 0 4px;font-size:17px;font-weight:600;letter-spacing:.2px}
+  .sub{margin:0 0 18px;color:var(--dim);font-size:12.5px}
+  .sub code{color:var(--accent);font-family:ui-monospace,SFMono-Regular,Consolas,monospace}
+
+  .bar{height:4px;background:#131b2b;border-radius:99px;overflow:hidden;margin:16px 0 10px}
+  .bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .18s ease}
+
+  .files{
+    display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));
+    gap:4px 10px;font:11.5px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace;
+    color:var(--dim);margin-top:12px;
+  }
+  .files span::before{content:"·  ";color:#39445c}
+  .files span.ok{color:var(--ink)}
+  .files span.ok::before{content:"✓  ";color:var(--ok)}
+  .files span.alt.ok::before{content:"✓  ";color:var(--accent)}
+  .files span.bad{color:var(--bad)}
+  .files span.bad::before{content:"✕  ";color:var(--bad)}
+
+  #status{margin-top:14px;font-size:12.5px;color:var(--dim);min-height:18px}
+  #status.bad{color:var(--bad)}
+  pre{
+    margin:12px 0 0;padding:10px 12px;background:#0d1220;border:1px solid var(--line);
+    border-radius:8px;color:var(--bad);font:11.5px/1.5 ui-monospace,Consolas,monospace;
+    white-space:pre-wrap;max-height:180px;overflow:auto;display:none;
+  }
+  pre.show{display:block}
+  .foot{margin-top:16px;padding-top:14px;border-top:1px solid var(--line);
+        font-size:11.5px;color:var(--dim)}
+  .foot a{color:var(--accent);text-decoration:none}
+  .foot a:hover{text-decoration:underline}
+  button{
+    margin-top:14px;background:#16203a;color:var(--ink);border:1px solid var(--line);
+    border-radius:7px;padding:7px 14px;font:inherit;font-size:12.5px;cursor:pointer;display:none;
+  }
+  button.show{display:inline-block}
+  button:hover{border-color:#2b3a58}
+</style>
+</head>
+<body>
+
+<iframe id="stage" title="Why Earth Has Seasons"></iframe>
+
+<div id="loader">
+  <div class="card">
+    <h1>Why Earth Has Seasons</h1>
+    <p class="sub">Assembling the simulator from
+      <code id="srcLabel">github.com/curiomindsinc/seasons</code></p>
+
+    <div class="bar"><i id="barFill"></i></div>
+    <div class="files" id="files"></div>
+    <div id="status">Fetching sources…</div>
+    <pre id="err"></pre>
+    <button id="retry">Retry</button>
+
+    <div class="foot">
+      Nothing is stored locally — every part is pulled fresh from the repository
+      on each load. Override with <code>?ref=</code> (branch, tag or commit) or
+      <code>?mirror=jsdelivr</code>.
+      <br><a href="https://github.com/curiomindsinc/seasons" target="_blank" rel="noopener">View the source repository →</a>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+/* =====================================================================
+   Remote loader for the seasons simulator.
+   ---------------------------------------------------------------------
+   season.html is a build artifact: build.sh concatenates the fragments in
+   parts/ into one self-contained page.  This file does the same job at
+   runtime, over the network, so it always runs whatever is on the branch
+   rather than whatever was last built locally.
+
+   The concatenation order below must stay in step with build.sh — note
+   that 11-selftest comes before 10-app, because boot() in the app calls
+   window.SeasonSelfTest.
+   ===================================================================== */
+
+const REPO = 'curiomindsinc/seasons';
+
+const PARTS = [
+  'parts/01-head.html',
+  'parts/02-body.html',
+  'parts/03-astro.js',
+  'parts/04-cities.js',
+  'parts/05-orbit.js',
+  'parts/06-orbit2.js',
+  'parts/07-orbit3.js',
+  'parts/08-sky.js',
+  'parts/09-graphs.js',
+  'parts/11-selftest.js',   /* before 10-app — see build.sh */
+  'parts/10-app.js'
+];
+
+const TAIL = '\n</body>\n</html>\n';
+
+const params = new URLSearchParams(location.search);
+const REF    = params.get('ref') || 'main';
+
+/* Two mirrors of the same files.  raw.githubusercontent caches for about
+   five minutes, so it shows a fresh push soonest; jsDelivr is a proper CDN
+   but pins a moving ref for up to twelve hours.  Either is tried for each
+   file independently, so one being down or rate-limited is survivable. */
+const MIRRORS = {
+  raw:      p => 'https://raw.githubusercontent.com/' + REPO + '/' + REF + '/' + p,
+  jsdelivr: p => 'https://cdn.jsdelivr.net/gh/' + REPO + '@' + REF + '/' + p
+};
+
+const preferred = params.get('mirror') === 'jsdelivr' ? 'jsdelivr' : 'raw';
+const fallback  = preferred === 'raw' ? 'jsdelivr' : 'raw';
+
+const $ = id => document.getElementById(id);
+const loader = $('loader'), stage = $('stage'), statusEl = $('status'),
+      errEl = $('err'), barFill = $('barFill'), retryBtn = $('retry');
+
+$('srcLabel').textContent = REPO + '@' + REF;
+
+/* ------------------------------------------------------------- progress */
+
+const cells = PARTS.map(p => {
+  const el = document.createElement('span');
+  el.textContent = p.replace('parts/', '');
+  $('files').appendChild(el);
+  return el;
+});
+
+let done = 0;
+function tick(i, state){
+  cells[i].className = state;                 /* 'ok', 'alt ok' or 'bad' */
+  if (state !== 'bad') barFill.style.width = (++done / PARTS.length * 100) + '%';
+}
+
+function fail(msg, detail){
+  statusEl.textContent = msg;
+  statusEl.className = 'bad';
+  if (detail){ errEl.textContent = detail; errEl.className = 'show'; }
+  retryBtn.className = 'show';
+}
+
+/* ---------------------------------------------------------------- fetch */
+
+/* Cache-bust so a reload after a push does not serve a stale part from the
+   browser's own HTTP cache.  The mirrors' edge caches still apply. */
+const bust = '?t=' + Date.now();
+
+async function grab(path, index){
+  let firstError = null;
+
+  for (const name of [preferred, fallback]){
+    try {
+      const res = await fetch(MIRRORS[name](path) + bust, { cache: 'no-store' });
+      if (!res.ok) throw new Error('HTTP ' + res.status + ' ' + res.statusText);
+      const text = await res.text();
+      if (!text.trim()) throw new Error('empty response');
+      tick(index, name === preferred ? 'ok' : 'alt ok');
+      return text;
+    } catch (e) {
+      if (!firstError) firstError = e;
+    }
+  }
+
+  tick(index, 'bad');
+  throw new Error(path + ' — ' + firstError.message);
+}
+
+async function load(){
+  statusEl.textContent = 'Fetching ' + PARTS.length + ' parts…';
+  statusEl.className = '';
+  errEl.className = '';
+  retryBtn.className = '';
+  done = 0;
+  barFill.style.width = '0';
+  cells.forEach(c => c.className = '');
+
+  let pieces;
+  try {
+    /* Parallel fetch, but assembled strictly in PARTS order. */
+    pieces = await Promise.all(PARTS.map(grab));
+  } catch (e) {
+    fail('Could not load the simulator.', e.message +
+      '\n\nCheck that the repository is public and reachable, that the ref "' +
+      REF + '" exists, and that you are online. Opening this file straight ' +
+      'from disk is fine — both mirrors send Access-Control-Allow-Origin: *.');
+    return;
+  }
+
+  statusEl.textContent = 'Starting the simulator…';
+
+  /* Hand the assembled document to the iframe.  This is byte-for-byte what
+     build.sh writes to season.html, so the page runs exactly as it ships —
+     including its own boot sequence, three.js load and self-tests. */
+  stage.srcdoc = pieces.join('') + TAIL;
+
+  stage.addEventListener('load', () => {
+    stage.className = 'ready';
+    loader.className = 'done';
+    document.title = 'Why Earth Has Seasons — Tilt & Orbit Simulator';
+    stage.focus();
+  }, { once: true });
+}
+
+retryBtn.addEventListener('click', () => location.reload());
+load();
+</script>
+
+</body>
+</html>
