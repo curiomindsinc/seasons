@@ -134,16 +134,42 @@ const TAIL = '\n</body>\n</html>\n';
 const params = new URLSearchParams(location.search);
 const REF    = params.get('ref') || 'main';
 
-/* Two mirrors of the same files.  raw.githubusercontent caches for about
-   five minutes, so it shows a fresh push soonest; jsDelivr is a proper CDN
-   but pins a moving ref for up to twelve hours.  Either is tried for each
-   file independently, so one being down or rate-limited is survivable. */
+/* Getting the *current* files is the whole point, and a moving ref like
+   "main" makes that harder than it looks:
+
+     - raw.githubusercontent sits behind an edge cache that ignores the query
+       string, so a ?t= cache-buster does nothing.  It was measured serving a
+       stale part minutes after a push while the CDN already had the new one.
+     - jsDelivr pins a moving ref for up to twelve hours (s-maxage=43200).
+
+   So resolve the ref to a commit SHA first, through the GitHub API, and then
+   fetch that immutable SHA.  A SHA-pinned URL cannot go stale, on either
+   mirror.  If the API is unreachable or rate-limited (60 requests per hour
+   per IP, unauthenticated) fall back to the moving ref and accept that the
+   copy may lag a push. */
+
+const API = 'https://api.github.com/repos/' + REPO + '/commits/';
+
+async function resolveRef(ref){
+  if (/^[0-9a-f]{40}$/i.test(ref)) return ref;      /* already immutable */
+  try {
+    const res = await fetch(API + encodeURIComponent(ref),
+      { headers: { Accept: 'application/vnd.github.sha' } });
+    if (!res.ok) return null;
+    const sha = (await res.text()).trim();
+    return /^[0-9a-f]{40}$/i.test(sha) ? sha : null;
+  } catch (e) { return null; }
+}
+
+/* Filled in by load(); until then the mirrors use the ref as given. */
+let PIN = REF;
+
 const MIRRORS = {
-  raw:      p => 'https://raw.githubusercontent.com/' + REPO + '/' + REF + '/' + p,
-  jsdelivr: p => 'https://cdn.jsdelivr.net/gh/' + REPO + '@' + REF + '/' + p
+  jsdelivr: p => 'https://cdn.jsdelivr.net/gh/' + REPO + '@' + PIN + '/' + p,
+  raw:      p => 'https://raw.githubusercontent.com/' + REPO + '/' + PIN + '/' + p
 };
 
-const preferred = params.get('mirror') === 'jsdelivr' ? 'jsdelivr' : 'raw';
+const preferred = params.get('mirror') === 'raw' ? 'raw' : 'jsdelivr';
 const fallback  = preferred === 'raw' ? 'jsdelivr' : 'raw';
 
 const $ = id => document.getElementById(id);
@@ -176,16 +202,12 @@ function fail(msg, detail){
 
 /* ---------------------------------------------------------------- fetch */
 
-/* Cache-bust so a reload after a push does not serve a stale part from the
-   browser's own HTTP cache.  The mirrors' edge caches still apply. */
-const bust = '?t=' + Date.now();
-
 async function grab(path, index){
   let firstError = null;
 
   for (const name of [preferred, fallback]){
     try {
-      const res = await fetch(MIRRORS[name](path) + bust, { cache: 'no-store' });
+      const res = await fetch(MIRRORS[name](path), { cache: 'no-store' });
       if (!res.ok) throw new Error('HTTP ' + res.status + ' ' + res.statusText);
       const text = await res.text();
       if (!text.trim()) throw new Error('empty response');
@@ -201,13 +223,25 @@ async function grab(path, index){
 }
 
 async function load(){
-  statusEl.textContent = 'Fetching ' + PARTS.length + ' parts…';
+  statusEl.textContent = 'Resolving ' + REF + '…';
   statusEl.className = '';
   errEl.className = '';
   retryBtn.className = '';
   done = 0;
   barFill.style.width = '0';
   cells.forEach(c => c.className = '');
+
+  const sha = await resolveRef(REF);
+  if (sha){
+    PIN = sha;
+    $('srcLabel').textContent = REPO + '@' + sha.slice(0, 7);
+  } else {
+    /* Not fatal, but the copy may lag the branch — say so rather than
+       quietly serving something old. */
+    $('srcLabel').textContent = REPO + '@' + REF + ' (unpinned)';
+  }
+
+  statusEl.textContent = 'Fetching ' + PARTS.length + ' parts…';
 
   let pieces;
   try {

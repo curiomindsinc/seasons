@@ -28,13 +28,24 @@ Open it from disk like any other file; both mirrors send
 
     seasonweb.html                      latest main
     seasonweb.html?ref=v1.2             a tag, branch or commit SHA
-    seasonweb.html?mirror=jsdelivr      jsDelivr instead of raw.githubusercontent
+    seasonweb.html?mirror=raw           raw.githubusercontent instead of jsDelivr
 
-It reads from raw.githubusercontent by default, which reflects a push within
-about five minutes; jsDelivr is a faster CDN but can pin a moving ref for up to
-twelve hours. Each fragment falls back to the other mirror on its own, so one
-being down or rate-limited is survivable. Requires network access — and the
-repository must stay public.
+Getting the *current* files is the whole point, and a moving ref like `main`
+makes that harder than it looks. `raw.githubusercontent` sits behind an edge
+cache that **ignores the query string**, so the usual `?t=` cache-buster does
+nothing — it was measured here serving a part from the previous commit minutes
+after a push, while the CDN already had the new one. jsDelivr pins a moving ref
+for up to twelve hours.
+
+So the loader resolves the ref to a commit SHA through the GitHub API first,
+then fetches that immutable SHA, which cannot go stale on either mirror. The
+header shows the short SHA it actually ran. If the API is unreachable or
+rate-limited (60 requests per hour per IP, unauthenticated) it falls back to the
+moving ref and labels itself `(unpinned)` rather than quietly serving something
+old. Each fragment also falls back from jsDelivr to raw on its own, so one
+mirror being down is survivable.
+
+Requires network access, and the repository must stay public.
 
 ## Editing
 
